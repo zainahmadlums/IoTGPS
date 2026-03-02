@@ -1,0 +1,2 @@
+version,device name,recording epoch time,recording time,recording timezone,platform,appVersion,device id,sensors,sampleRateMs,standardisation
+3,SM-A166W,1747275440851,2025-05-14_02-17-20,America/Edmonton,android,1.43.2,ab854970-22d6-47b8-8b69-5fe35502721c,Accelerometer|Gyroscope|Annotation|TotalAcceleration|GyroscopeUncalibrated|AccelerometerUncalibrated,10|10||10|10|10,false
