@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">audio</string>
+    <string name="session_placeholder">DeployTeach audio tracking scaffold</string>
+    <string name="session_running_format">Session: %1$s</string>
+    <string name="current_speech_format">Speech: %1$s</string>
+    <string name="current_disturbance_format">Disturbance: %1$s</string>
+    <string name="current_reverb_format">Reverb: %1$s</string>
+    <string name="session_summary_format">Summary: speech %1$d%%, disturbances %2$d, reverb %3$s</string>
+    <string name="session_summary_live_format">Live summary: speech %1$d%%, disturbances %2$d, reverb %3$s</string>
+    <string name="session_summary_empty">Summary: no session data yet</string>
+    <string name="session_running">Running</string>
+    <string name="session_stopped">Stopped</string>
+    <string name="speech_state_idle">Idle</string>
+    <string name="speech_state_speech">Speech</string>
+    <string name="speech_state_silence">Silence</string>
+    <string name="disturbance_detected">Detected</string>
+    <string name="disturbance_clear">Clear</string>
+    <string name="start_tracking">Start Tracking</string>
+    <string name="stop_tracking">Stop Tracking</string>
+    <string name="audio_tracking_channel_name">Audio Tracking</string>
+    <string name="audio_tracking_notification_title">Audio tracking active</string>
+    <string name="audio_tracking_notification_text">Microphone capture service is running</string>
+</resources>
