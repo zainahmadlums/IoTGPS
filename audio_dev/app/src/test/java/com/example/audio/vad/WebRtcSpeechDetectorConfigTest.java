@@ -11,11 +11,11 @@ import static org.junit.Assert.assertEquals;
 public class WebRtcSpeechDetectorConfigTest {
 
     @Test
-    public void usesStrictWebRtcFrameConfigurationWithoutExtraSmoothing() {
+    public void usesRecommendedWebRtcFrameConfigurationAndLatching() {
         assertEquals(SampleRate.SAMPLE_RATE_16K, WebRtcSpeechDetector.configuredSampleRate());
         assertEquals(FrameSize.FRAME_SIZE_320, WebRtcSpeechDetector.configuredFrameSize());
         assertEquals(Mode.VERY_AGGRESSIVE, WebRtcSpeechDetector.configuredMode());
-        assertEquals(0, WebRtcSpeechDetector.configuredSpeechDurationMs());
-        assertEquals(0, WebRtcSpeechDetector.configuredSilenceDurationMs());
+        assertEquals(50, WebRtcSpeechDetector.configuredSpeechDurationMs());
+        assertEquals(300, WebRtcSpeechDetector.configuredSilenceDurationMs());
     }
 }

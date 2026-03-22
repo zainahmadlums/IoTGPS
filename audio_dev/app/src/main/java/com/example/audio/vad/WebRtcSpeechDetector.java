@@ -13,8 +13,8 @@ public class WebRtcSpeechDetector implements SpeechDetector {
     private static final SampleRate CONFIGURED_SAMPLE_RATE = SampleRate.SAMPLE_RATE_16K;
     private static final FrameSize CONFIGURED_FRAME_SIZE = FrameSize.FRAME_SIZE_320;
     private static final Mode CONFIGURED_MODE = Mode.VERY_AGGRESSIVE;
-    private static final int CONFIGURED_SPEECH_DURATION_MS = 300;
-    private static final int CONFIGURED_SILENCE_DURATION_MS = 50;
+    private static final int CONFIGURED_SPEECH_DURATION_MS = 50;
+    private static final int CONFIGURED_SILENCE_DURATION_MS = 300;
 
     private final VadWebRTC vadDelegate;
     private long lastLogTimestampMillis;
