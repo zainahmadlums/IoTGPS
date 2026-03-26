@@ -45,6 +45,23 @@ public final class SessionAudioFileManager {
         return !audioFile.exists() || audioFile.delete();
     }
 
+    public static boolean deleteAllAudioFiles(Context context) {
+        File directory = getAudioDirectory(context);
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return true;
+        }
+
+        boolean allDeleted = true;
+        for (File file : files) {
+            if (file.isFile() && !file.delete()) {
+                allDeleted = false;
+                Logger.e(TAG, "Failed to delete archived audio file: " + file.getName());
+            }
+        }
+        return allDeleted;
+    }
+
     public static String renameAudioFile(
             Context context,
             String currentGeneratedFilename,

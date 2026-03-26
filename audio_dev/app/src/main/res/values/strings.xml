@@ -61,6 +61,10 @@
     <string name="library_empty_title">No sessions match this view</string>
     <string name="library_empty_body">Start and stop tracking to archive session intelligence here, or try a different search term, chip filter, or sort option.</string>
     <string name="library_sample_banner">Archived sessions</string>
+    <string name="library_delete_all_title">Delete all recordings?</string>
+    <string name="library_delete_all_body">This permanently removes every archived audio file and library entry on this device.</string>
+    <string name="library_delete_all_action">Delete All Audio</string>
+    <string name="library_delete_all_done">All archived audio deleted.</string>
     <string name="library_card_duration">Duration: %1$s</string>
     <string name="library_card_speech_ratio">Speech %1$d%%</string>
     <string name="library_card_disturbance">%1$d disturbances</string>

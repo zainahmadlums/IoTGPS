@@ -18,7 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.audio.R;
 import com.example.audio.ui.detail.AudioDetailActivity;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -39,6 +42,7 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
     private RecyclerView recyclerView;
     private View emptyStateView;
     private TextView sampleBannerText;
+    private MaterialButton deleteAllButton;
     private AudioSessionAdapter adapter;
     private List<AudioSessionItem> allSessions = new ArrayList<>();
 
@@ -68,6 +72,7 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
         recyclerView = view.findViewById(R.id.audio_library_recycler);
         emptyStateView = view.findViewById(R.id.library_empty_state);
         sampleBannerText = view.findViewById(R.id.library_sample_banner);
+        deleteAllButton = view.findViewById(R.id.library_delete_all_button);
 
         adapter = new AudioSessionAdapter(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -102,6 +107,7 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
         speechHeavyChip.setOnClickListener(filterListener);
         disturbanceChip.setOnClickListener(filterListener);
         sortInput.setOnItemClickListener((parent, v, position, id) -> renderLibrary());
+        deleteAllButton.setOnClickListener(v -> showDeleteAllDialog());
 
         allChip.setChecked(true);
         sampleBannerText.setText(R.string.library_recordings_heading);
@@ -150,6 +156,8 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
         adapter.submitList(filteredSessions);
         emptyStateView.setVisibility(filteredSessions.isEmpty() ? View.VISIBLE : View.GONE);
         recyclerView.setVisibility(filteredSessions.isEmpty() ? View.GONE : View.VISIBLE);
+        deleteAllButton.setEnabled(!allSessions.isEmpty());
+        deleteAllButton.setAlpha(allSessions.isEmpty() ? 0.5f : 1.0f);
     }
 
     private boolean matchesFilter(AudioSessionItem item) {
@@ -182,5 +190,34 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
         }
 
         Collections.sort(items, comparator);
+    }
+
+    private void showDeleteAllDialog() {
+        if (allSessions.isEmpty()) {
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.library_delete_all_title)
+                .setMessage(R.string.library_delete_all_body)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.library_delete_all_action, (dialog, which) -> {
+                    boolean deleted = AudioLibraryRepository.getInstance().deleteAllSessions(requireContext());
+                    if (!deleted) {
+                        Snackbar.make(
+                                requireView(),
+                                R.string.detail_action_failed,
+                                Snackbar.LENGTH_SHORT
+                        ).show();
+                        return;
+                    }
+                    refreshLibrary();
+                    Snackbar.make(
+                            requireView(),
+                            R.string.library_delete_all_done,
+                            Snackbar.LENGTH_SHORT
+                    ).show();
+                })
+                .show();
     }
 }

@@ -51,6 +51,10 @@ public final class AudioLibraryRepository {
         return SessionArchiveStore.getInstance().deleteSession(context, sessionId);
     }
 
+    public boolean deleteAllSessions(Context context) {
+        return SessionArchiveStore.getInstance().deleteAllSessions(context);
+    }
+
     public File resolveAudioFile(Context context, AudioSessionItem item) {
         return SessionAudioFileManager.resolveAudioFile(
                 context.getApplicationContext(),

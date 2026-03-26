@@ -103,6 +103,13 @@ public final class SessionArchiveStore {
         return false;
     }
 
+    public synchronized boolean deleteAllSessions(Context context) {
+        Context appContext = context.getApplicationContext();
+        boolean allDeleted = SessionAudioFileManager.deleteAllAudioFiles(appContext);
+        writeEntries(appContext, new ArrayList<>());
+        return allDeleted;
+    }
+
     private JSONArray readArchiveArray(Context context) {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
