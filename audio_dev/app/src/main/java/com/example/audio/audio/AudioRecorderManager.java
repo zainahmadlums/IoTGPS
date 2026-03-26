@@ -106,9 +106,9 @@ public class AudioRecorderManager {
         int frameBytes = audioConfig.getFrameSizeBytes();
         bufferSizeBytes = Math.max(minimumBuffer, frameBytes * 4);
 
-        AudioRecord createdRecord = buildAudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION);
+        AudioRecord createdRecord = buildAudioRecord(MediaRecorder.AudioSource.MIC);
         if (createdRecord == null) {
-            createdRecord = buildAudioRecord(MediaRecorder.AudioSource.MIC);
+            createdRecord = buildAudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION);
         }
 
         if (createdRecord == null) {

@@ -6,6 +6,9 @@ public class AudioConfig {
 
     public static final int DEFAULT_SAMPLE_RATE_HZ = 16000;
     public static final int DEFAULT_FRAME_DURATION_MS = 20;
+    public static final int SILERO_FRAME_SIZE_SAMPLES = 512;
+    public static final int SILERO_FRAME_DURATION_MS =
+            (SILERO_FRAME_SIZE_SAMPLES * 1000) / DEFAULT_SAMPLE_RATE_HZ;
     public static final int DEFAULT_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
     public static final int DEFAULT_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 
@@ -41,6 +44,17 @@ public class AudioConfig {
                 DEFAULT_ENCODING,
                 DEFAULT_FRAME_DURATION_MS,
                 frameSizeSamples
+        );
+    }
+
+    public static AudioConfig sileroConfig() {
+        return new AudioConfig(
+                DEFAULT_SAMPLE_RATE_HZ,
+                1,
+                DEFAULT_CHANNEL_CONFIG,
+                DEFAULT_ENCODING,
+                SILERO_FRAME_DURATION_MS,
+                SILERO_FRAME_SIZE_SAMPLES
         );
     }
 

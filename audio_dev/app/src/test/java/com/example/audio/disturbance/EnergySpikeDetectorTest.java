@@ -17,16 +17,16 @@ public class EnergySpikeDetectorTest {
 
         for (int index = 0; index < 5; index++) {
             DisturbanceResult quietResult = detector.analyze(
-                    SyntheticAudioFactory.constantFrame(320, 200),
+                    SyntheticAudioFactory.currentConstantFrame(200),
                     timestamp,
                     new VadResult(timestamp, false, null)
             );
             assertFalse(quietResult.isDisturbanceDetected());
-            timestamp += 20L;
+            timestamp += SyntheticAudioFactory.currentFrameDurationMillis();
         }
 
         DisturbanceResult spikeResult = detector.analyze(
-                SyntheticAudioFactory.alternatingFrame(320, 22000),
+                SyntheticAudioFactory.currentAlternatingFrame(22000),
                 timestamp,
                 new VadResult(timestamp, false, null)
         );

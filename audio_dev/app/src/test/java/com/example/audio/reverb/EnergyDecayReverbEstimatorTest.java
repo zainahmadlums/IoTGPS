@@ -16,7 +16,7 @@ public class EnergyDecayReverbEstimatorTest {
         long timestamp = primeSpeech(estimator);
 
         ReverbResult result = estimator.estimate(
-                SyntheticAudioFactory.constantFrame(320, 300),
+                SyntheticAudioFactory.currentConstantFrame(300),
                 timestamp,
                 new VadResult(timestamp, false, null)
         );
@@ -34,11 +34,11 @@ public class EnergyDecayReverbEstimatorTest {
 
         for (int tailAmplitude : tailAmplitudes) {
             result = estimator.estimate(
-                    SyntheticAudioFactory.constantFrame(320, tailAmplitude),
+                    SyntheticAudioFactory.currentConstantFrame(tailAmplitude),
                     timestamp,
                     new VadResult(timestamp, false, null)
             );
-            timestamp += 20L;
+            timestamp += SyntheticAudioFactory.currentFrameDurationMillis();
         }
 
         assertTrue(result != null);
@@ -51,11 +51,11 @@ public class EnergyDecayReverbEstimatorTest {
         long timestamp = 0L;
         for (int index = 0; index < 3; index++) {
             estimator.estimate(
-                    SyntheticAudioFactory.constantFrame(320, 20000),
+                    SyntheticAudioFactory.currentConstantFrame(20000),
                     timestamp,
                     new VadResult(timestamp, true, null)
             );
-            timestamp += 20L;
+            timestamp += SyntheticAudioFactory.currentFrameDurationMillis();
         }
         return timestamp;
     }

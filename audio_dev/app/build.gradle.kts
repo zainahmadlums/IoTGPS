@@ -39,7 +39,7 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     implementation(libs.lifecycle.viewmodel)
-    implementation(libs.android.vad.webrtc)
+    implementation(libs.android.vad.silero)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

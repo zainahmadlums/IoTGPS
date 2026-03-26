@@ -1,26 +1,30 @@
 package com.example.audio.vad;
 
+import android.content.Context;
+
 import com.example.audio.audio.AudioConfig;
 import com.example.audio.util.Logger;
-import com.konovalov.vad.webrtc.VadWebRTC;
-import com.konovalov.vad.webrtc.config.FrameSize;
-import com.konovalov.vad.webrtc.config.Mode;
-import com.konovalov.vad.webrtc.config.SampleRate;
+import com.konovalov.vad.silero.VadSilero;
+import com.konovalov.vad.silero.config.FrameSize;
+import com.konovalov.vad.silero.config.Mode;
+import com.konovalov.vad.silero.config.SampleRate;
 
-public class WebRtcSpeechDetector implements SpeechDetector {
+public class SileroSpeechDetector implements SpeechDetector {
 
-    private static final String TAG = "WebRtcSpeechDetector";
+    private static final String TAG = "SileroSpeechDetector";
     private static final SampleRate CONFIGURED_SAMPLE_RATE = SampleRate.SAMPLE_RATE_16K;
-    private static final FrameSize CONFIGURED_FRAME_SIZE = FrameSize.FRAME_SIZE_320;
-    private static final Mode CONFIGURED_MODE = Mode.VERY_AGGRESSIVE;
+    private static final FrameSize CONFIGURED_FRAME_SIZE = FrameSize.FRAME_SIZE_512;
+    private static final Mode CONFIGURED_MODE = Mode.NORMAL;
     private static final int CONFIGURED_SPEECH_DURATION_MS = 50;
     private static final int CONFIGURED_SILENCE_DURATION_MS = 300;
+    private static final int CONFIGURED_FRAME_SIZE_SAMPLES = 512;
 
-    private final VadWebRTC vadDelegate;
+    private final VadSilero vadDelegate;
     private long lastLogTimestampMillis;
 
-    public WebRtcSpeechDetector() {
-        this.vadDelegate = new VadWebRTC(
+    public SileroSpeechDetector(Context context) {
+        this.vadDelegate = new VadSilero(
+                context.getApplicationContext(),
                 CONFIGURED_SAMPLE_RATE,
                 CONFIGURED_FRAME_SIZE,
                 CONFIGURED_MODE,
@@ -31,7 +35,7 @@ public class WebRtcSpeechDetector implements SpeechDetector {
 
     @Override
     public VadResult analyze(short[] frame, long timestampMillis) {
-        if (frame == null || frame.length != 320) {
+        if (frame == null || frame.length != CONFIGURED_FRAME_SIZE_SAMPLES) {
             return new VadResult(timestampMillis, false, null);
         }
 
@@ -48,7 +52,9 @@ public class WebRtcSpeechDetector implements SpeechDetector {
     public static boolean supports(AudioConfig audioConfig) {
         return audioConfig.getSampleRateHz() == AudioConfig.DEFAULT_SAMPLE_RATE_HZ
                 && audioConfig.getChannelCount() == 1
-                && audioConfig.getFrameSizeSamples() == 320;
+                && audioConfig.getAudioEncoding() == AudioConfig.DEFAULT_ENCODING
+                && audioConfig.getFrameSizeSamples() == CONFIGURED_FRAME_SIZE_SAMPLES
+                && audioConfig.getFrameSizeBytes() == CONFIGURED_FRAME_SIZE_SAMPLES * 2;
     }
 
     static SampleRate configuredSampleRate() {

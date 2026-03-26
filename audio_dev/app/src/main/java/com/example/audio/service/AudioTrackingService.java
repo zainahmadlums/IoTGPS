@@ -22,7 +22,7 @@ import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.pipeline.AudioPipelineCoordinator;
 import com.example.audio.pipeline.FrameProcessingDiagnostics;
 import com.example.audio.reverb.EnergyDecayReverbEstimator;
-import com.example.audio.vad.WebRtcSpeechDetector;
+import com.example.audio.vad.SpeechDetectorFactory;
 
 public class AudioTrackingService extends Service {
 
@@ -92,13 +92,10 @@ public class AudioTrackingService extends Service {
     }
 
     private void ensureTrackingComponents() {
-        AudioConfig audioConfig = AudioConfig.defaultConfig();
-        if (!WebRtcSpeechDetector.supports(audioConfig)) {
-            throw new IllegalStateException("WebRTC VAD configuration must use 16 kHz mono 20 ms frames.");
-        }
+        AudioConfig audioConfig = SpeechDetectorFactory.activeAudioConfig();
         if (audioPipelineCoordinator == null) {
             audioPipelineCoordinator = new AudioPipelineCoordinator(
-                    new WebRtcSpeechDetector(),
+                    SpeechDetectorFactory.create(this),
                     new EnergySpikeDetector(),
                     new EnergyDecayReverbEstimator()
             );

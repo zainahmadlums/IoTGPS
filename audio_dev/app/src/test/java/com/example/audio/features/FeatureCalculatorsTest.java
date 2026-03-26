@@ -13,7 +13,7 @@ public class FeatureCalculatorsTest {
     public void rmsCalculatorReturnsZeroForSilence() {
         RmsCalculator calculator = new RmsCalculator();
 
-        float rms = calculator.extract(SyntheticAudioFactory.constantFrame(320, 0));
+        float rms = calculator.extract(SyntheticAudioFactory.currentConstantFrame(0));
 
         assertEquals(0.0f, rms, 0.0001f);
     }
@@ -22,7 +22,7 @@ public class FeatureCalculatorsTest {
     public void rmsCalculatorNormalizesAmplitude() {
         RmsCalculator calculator = new RmsCalculator();
 
-        float rms = calculator.extract(SyntheticAudioFactory.constantFrame(320, 16384));
+        float rms = calculator.extract(SyntheticAudioFactory.currentConstantFrame(16384));
 
         assertTrue(rms > 0.49f && rms < 0.51f);
     }
@@ -31,7 +31,7 @@ public class FeatureCalculatorsTest {
     public void zcrCalculatorDetectsFrequentSignChanges() {
         ZcrCalculator calculator = new ZcrCalculator();
 
-        float zcr = calculator.extract(SyntheticAudioFactory.alternatingFrame(320, 12000));
+        float zcr = calculator.extract(SyntheticAudioFactory.currentAlternatingFrame(12000));
 
         assertTrue(zcr > 0.95f);
     }
@@ -39,9 +39,9 @@ public class FeatureCalculatorsTest {
     @Test
     public void spectralFluxCalculatorDetectsFrameChange() {
         SpectralFluxCalculator calculator = new SpectralFluxCalculator();
-        calculator.extract(SyntheticAudioFactory.constantFrame(320, 1000));
+        calculator.extract(SyntheticAudioFactory.currentConstantFrame(1000));
 
-        float flux = calculator.extract(SyntheticAudioFactory.constantFrame(320, 12000));
+        float flux = calculator.extract(SyntheticAudioFactory.currentConstantFrame(12000));
 
         assertTrue(flux > 0.2f);
     }

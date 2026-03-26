@@ -1,5 +1,7 @@
 package com.example.audio.testsupport;
 
+import com.example.audio.audio.AudioConfig;
+
 public final class SyntheticAudioFactory {
 
     private SyntheticAudioFactory() {
@@ -21,5 +23,21 @@ public final class SyntheticAudioFactory {
             frame[index] = index % 2 == 0 ? value : (short) -value;
         }
         return frame;
+    }
+
+    public static int currentFrameSizeSamples() {
+        return AudioConfig.sileroConfig().getFrameSizeSamples();
+    }
+
+    public static long currentFrameDurationMillis() {
+        return AudioConfig.sileroConfig().getFrameDurationMs();
+    }
+
+    public static short[] currentConstantFrame(int amplitude) {
+        return constantFrame(currentFrameSizeSamples(), amplitude);
+    }
+
+    public static short[] currentAlternatingFrame(int amplitude) {
+        return alternatingFrame(currentFrameSizeSamples(), amplitude);
     }
 }

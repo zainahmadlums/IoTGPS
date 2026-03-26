@@ -8,7 +8,7 @@ material = "1.13.0"
 activity = "1.12.4"
 constraintlayout = "2.2.1"
 lifecycle = "2.9.4"
-androidVadWebrtc = "2.0.10"
+androidVadSilero = "2.0.10"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -19,7 +19,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "lifecycle" }
-android-vad-webrtc = { group = "com.github.gkonovalov.android-vad", name = "webrtc", version.ref = "androidVadWebrtc" }
+android-vad-silero = { group = "com.github.gkonovalov.android-vad", name = "silero", version.ref = "androidVadSilero" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
