@@ -16,8 +16,10 @@ public class SileroSpeechDetectorConfigTest {
         assertEquals(SampleRate.SAMPLE_RATE_16K, SileroSpeechDetector.configuredSampleRate());
         assertEquals(FrameSize.FRAME_SIZE_512, SileroSpeechDetector.configuredFrameSize());
         assertEquals(Mode.NORMAL, SileroSpeechDetector.configuredMode());
-        assertEquals(50, SileroSpeechDetector.configuredSpeechDurationMs());
+        assertEquals(0, SileroSpeechDetector.configuredSpeechDurationMs());
         assertEquals(300, SileroSpeechDetector.configuredSilenceDurationMs());
+        assertEquals(1500L, SileroSpeechDetector.resetAfterSilenceMs());
+        assertEquals(5000L, SileroSpeechDetector.resetRetryAfterSilenceMs());
     }
 
     @Test

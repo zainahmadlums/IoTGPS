@@ -8,7 +8,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
@@ -22,6 +24,7 @@ import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.pipeline.AudioPipelineCoordinator;
 import com.example.audio.pipeline.FrameProcessingDiagnostics;
 import com.example.audio.reverb.EnergyDecayReverbEstimator;
+import com.example.audio.util.Logger;
 import com.example.audio.vad.SpeechDetectorFactory;
 
 public class AudioTrackingService extends Service {
@@ -31,11 +34,14 @@ public class AudioTrackingService extends Service {
 
     private static final String CHANNEL_ID = "audio_tracking";
     private static final int NOTIFICATION_ID = 1001;
+    private static final String TAG = "AudioTrackingService";
 
     private AudioRecorderManager audioRecorderManager;
     private AudioPipelineCoordinator audioPipelineCoordinator;
     private SessionRepository sessionRepository;
     private FrameProcessingDiagnostics diagnostics;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean restartInFlight;
 
     public static Intent createStartIntent(Context context) {
         Intent intent = new Intent(context, AudioTrackingService.class);
@@ -125,11 +131,20 @@ public class AudioTrackingService extends Service {
 
         try {
             sessionRepository.startSession();
-            audioRecorderManager.start((frame, timestampMillis) -> {
-                FrameAnalysisResult analysisResult =
-                        audioPipelineCoordinator.process(frame, timestampMillis);
-                diagnostics.record(analysisResult);
-                sessionRepository.append(analysisResult);
+            audioRecorderManager.start(new AudioRecorderManager.FrameCallback() {
+                @Override
+                public void onFrame(short[] frame, long timestampMillis) {
+                    FrameAnalysisResult analysisResult =
+                            audioPipelineCoordinator.process(frame, timestampMillis);
+                    diagnostics.record(analysisResult);
+                    sessionRepository.append(analysisResult);
+                }
+
+                @Override
+                public void onRecorderFailure(String reason, Throwable throwable) {
+                    Logger.e(TAG, "Recorder failure reported: " + reason, throwable);
+                    mainHandler.post(() -> restartTracking("recorder failure: " + reason));
+                }
             });
         } catch (RuntimeException runtimeException) {
             stopForeground(STOP_FOREGROUND_REMOVE);
@@ -151,6 +166,22 @@ public class AudioTrackingService extends Service {
         }
         audioRecorderManager = null;
         stopForeground(STOP_FOREGROUND_REMOVE);
+    }
+
+    private void restartTracking(String reason) {
+        if (restartInFlight) {
+            return;
+        }
+
+        restartInFlight = true;
+        Logger.e(TAG, "Restarting audio tracking due to " + reason + ".");
+        try {
+            stopTracking();
+            ensureTrackingComponents();
+            startTrackingIfNeeded();
+        } finally {
+            restartInFlight = false;
+        }
     }
 
     @Override
