@@ -4,7 +4,6 @@ Hard constraints:
 - Java only, not Kotlin
 - Do not rewrite unrelated files
 - Keep code modular and small
-- Never store or export raw audio
 - Process audio on-device only
 - Use a foreground microphone service
 - Build in phases; do not jump ahead
