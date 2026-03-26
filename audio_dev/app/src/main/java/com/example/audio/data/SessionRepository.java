@@ -7,6 +7,7 @@ import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.pipeline.SessionAggregator;
 import com.example.audio.pipeline.SessionSummary;
 import com.example.audio.reverb.ReverbResult;
+import com.example.audio.util.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +34,7 @@ public class SessionRepository {
             false
     );
     private boolean sessionRunning;
+    private long sessionStartTimeMillis;
 
     private SessionRepository() {
     }
@@ -79,6 +81,7 @@ public class SessionRepository {
         latestSpeechEvent = null;
         sessionAggregator.reset();
         sessionRunning = true;
+        sessionStartTimeMillis = TimeUtils.nowMillis();
         sessionAggregator.setSessionRunning(true);
         latestSessionSummary = sessionAggregator.getSummary();
     }
@@ -91,6 +94,20 @@ public class SessionRepository {
 
     public synchronized boolean isSessionRunning() {
         return sessionRunning;
+    }
+
+    public synchronized long getSessionStartTimeMillis() {
+        return sessionStartTimeMillis;
+    }
+
+    public synchronized long getSessionEndTimeMillis() {
+        if (latestSpeechEvent != null) {
+            return latestSpeechEvent.getTimestampMillis();
+        }
+        if (sessionStartTimeMillis > 0L) {
+            return TimeUtils.nowMillis();
+        }
+        return 0L;
     }
 
     public void addSpeechStateListener(SpeechStateListener listener) {

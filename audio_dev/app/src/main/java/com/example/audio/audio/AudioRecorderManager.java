@@ -20,6 +20,8 @@ public class AudioRecorderManager {
     private static final long ZERO_FRAME_RECOVERY_MILLIS = 2000L;
     private static final int PRIMARY_AUDIO_SOURCE = MediaRecorder.AudioSource.VOICE_RECOGNITION;
     private static final int MAX_ZERO_ROUTE_RECOVERIES = 3;
+    private static final int DEBUG_READ_LOG_LIMIT = 6;
+    private static final int DEBUG_FRAME_LOG_LIMIT = 6;
 
     public interface FrameCallback {
         void onFrame(short[] frame, long timestampMillis);
@@ -123,6 +125,8 @@ public class AudioRecorderManager {
         int frameOffset = 0;
         int consecutiveReadErrors = 0;
         int consecutiveZeroFrames = 0;
+        int debugReadLogs = 0;
+        int debugFrameLogs = 0;
         int zeroFrameRecoveryThreshold = Math.max(
                 32,
                 (int) Math.ceil((double) ZERO_FRAME_RECOVERY_MILLIS / audioConfig.getFrameDurationMs())
@@ -182,6 +186,20 @@ public class AudioRecorderManager {
                 }
 
                 consecutiveReadErrors = 0;
+                if (debugReadLogs < DEBUG_READ_LOG_LIMIT) {
+                    debugReadLogs++;
+                    Logger.d(
+                            TAG,
+                            "read samples="
+                                    + samplesRead
+                                    + ", bytes="
+                                    + (samplesRead * audioConfig.getBytesPerSample() * audioConfig.getChannelCount())
+                                    + ", frameSizeSamples="
+                                    + audioConfig.getFrameSizeSamples()
+                                    + ", source="
+                                    + activeAudioSource
+                    );
+                }
                 int chunkOffset = 0;
                 while (chunkOffset < samplesRead && recording) {
                     int copyLength = Math.min(frameBuffer.length - frameOffset, samplesRead - chunkOffset);
@@ -218,6 +236,18 @@ public class AudioRecorderManager {
                         }
 
                         try {
+                            if (debugFrameLogs < DEBUG_FRAME_LOG_LIMIT) {
+                                debugFrameLogs++;
+                                Logger.d(
+                                        TAG,
+                                        "dispatch frame samples="
+                                                + frameBuffer.length
+                                                + ", bytes="
+                                                + audioConfig.getFrameSizeBytes()
+                                                + ", timestamp="
+                                                + System.currentTimeMillis()
+                                );
+                            }
                             frameCallback.onFrame(
                                     Arrays.copyOf(frameBuffer, frameBuffer.length),
                                     System.currentTimeMillis()

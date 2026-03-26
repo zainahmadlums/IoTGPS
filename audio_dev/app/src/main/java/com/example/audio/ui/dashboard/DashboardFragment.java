@@ -151,7 +151,8 @@ public class DashboardFragment extends Fragment {
         startButton.setAlpha(running ? 0.55f : 1.0f);
         stopButton.setAlpha(running ? 1.0f : 0.7f);
 
-        List<AudioSessionItem> libraryItems = AudioLibraryRepository.getInstance().getSessions();
+        List<AudioSessionItem> libraryItems = AudioLibraryRepository.getInstance()
+                .getSessions(requireContext());
         if (libraryItems.isEmpty()) {
             recentPreviewTitle.setText(R.string.dashboard_preview_unavailable);
             recentPreviewMeta.setText(R.string.dashboard_recent_title);
@@ -167,14 +168,12 @@ public class DashboardFragment extends Fragment {
                         + " • "
                         + AudioSessionFormatter.formatDuration(item.getDurationMillis())
         );
-        recentPreviewBody.setText(item.isSampleData()
-                ? getString(R.string.dashboard_recent_sample)
-                : getString(
-                        R.string.session_summary_live_format,
-                        speechPercent,
-                        disturbanceCount,
-                        sessionViewModel.getReverbLevel().name()
-                ));
+        recentPreviewBody.setText(getString(
+                R.string.session_summary_live_format,
+                Math.round(item.getSpeechRatio() * 100.0f),
+                item.getDisturbanceCount(),
+                item.getReverbLevel().name()
+        ));
     }
 
     private String buildSummaryText(SessionSummary sessionSummary, boolean running) {

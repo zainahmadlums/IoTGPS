@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingStart="20dp"
-    android:paddingTop="20dp"
+    android:paddingTop="8dp"
     android:paddingEnd="20dp">
 
     <com.google.android.material.appbar.MaterialToolbar
@@ -14,41 +14,31 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:title="@string/library_title"
-        android:subtitle="@string/library_subtitle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/library_banner_card"
-        style="@style/Widget.DeployTeach.GlassCard"
+    <TextView
+        android:id="@+id/library_sample_banner"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        app:cardElevation="0dp"
+        android:layout_marginTop="0dp"
+        android:textAppearance="@style/TextAppearance.DeployTeach.Label"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/library_toolbar">
-
-        <TextView
-            android:id="@+id/library_sample_banner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="18dp"
-            android:textAppearance="@style/TextAppearance.DeployTeach.Body"
-            tools:text="Library is currently backed by elegant sample session metadata." />
-    </com.google.android.material.card.MaterialCardView>
+        app:layout_constraintTop_toBottomOf="@id/library_toolbar"
+        tools:text="Archived sessions" />
 
     <LinearLayout
         android:id="@+id/library_search_row"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:baselineAligned="false"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/library_banner_card">
+        app:layout_constraintTop_toBottomOf="@id/library_sample_banner">
 
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.DeployTeach.TextInput"
@@ -88,7 +78,7 @@
         android:id="@+id/library_chip_scroll"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="10dp"
         android:overScrollMode="never"
         android:scrollbars="none"
         app:layout_constraintEnd_toEndOf="parent"
@@ -135,7 +125,7 @@
         android:id="@+id/audio_library_recycler"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:clipToPadding="false"
         android:paddingBottom="120dp"
         app:layout_constraintBottom_toBottomOf="parent"

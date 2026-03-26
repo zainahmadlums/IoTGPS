@@ -23,7 +23,7 @@
             style="@style/Widget.DeployTeach.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:navigationIcon="@android:drawable/ic_menu_revert"
+            android:navigationIcon="@drawable/ic_back_arrow"
             android:title="@string/detail_title_fallback"
             android:subtitle="@string/detail_subtitle" />
 

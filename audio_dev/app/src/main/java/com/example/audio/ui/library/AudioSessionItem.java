@@ -16,6 +16,7 @@ public class AudioSessionItem implements Serializable {
     private final float speechRatio;
     private final int disturbanceCount;
     private final ReverbResult.Level reverbLevel;
+    private final String audioFileName;
     private final boolean playbackAvailable;
     private final boolean sampleData;
 
@@ -30,6 +31,7 @@ public class AudioSessionItem implements Serializable {
             float speechRatio,
             int disturbanceCount,
             ReverbResult.Level reverbLevel,
+            String audioFileName,
             boolean playbackAvailable,
             boolean sampleData
     ) {
@@ -43,6 +45,7 @@ public class AudioSessionItem implements Serializable {
         this.speechRatio = speechRatio;
         this.disturbanceCount = disturbanceCount;
         this.reverbLevel = reverbLevel;
+        this.audioFileName = audioFileName;
         this.playbackAvailable = playbackAvailable;
         this.sampleData = sampleData;
     }
@@ -85,6 +88,10 @@ public class AudioSessionItem implements Serializable {
 
     public ReverbResult.Level getReverbLevel() {
         return reverbLevel;
+    }
+
+    public String getAudioFileName() {
+        return audioFileName;
     }
 
     public boolean isPlaybackAvailable() {

@@ -104,7 +104,7 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
         sortInput.setOnItemClickListener((parent, v, position, id) -> renderLibrary());
 
         allChip.setChecked(true);
-        sampleBannerText.setText(R.string.library_sample_banner);
+        sampleBannerText.setText(R.string.library_recordings_heading);
         refreshLibrary();
     }
 
@@ -121,7 +121,7 @@ public class AudioLibraryFragment extends Fragment implements AudioSessionAdapte
     }
 
     private void refreshLibrary() {
-        allSessions = AudioLibraryRepository.getInstance().getSessions();
+        allSessions = AudioLibraryRepository.getInstance().getSessions(requireContext());
         renderLibrary();
     }
 

@@ -48,6 +48,7 @@
 
     <string name="library_title">Audio Library</string>
     <string name="library_subtitle">Browse session metadata, debug captures, and future recording manifests.</string>
+    <string name="library_recordings_heading">Archived sessions</string>
     <string name="library_search_hint">Search sessions, filenames, tags</string>
     <string name="library_sort_label">Sort</string>
     <string name="library_filter_all">All</string>
@@ -58,8 +59,8 @@
     <string name="library_sort_oldest">Oldest</string>
     <string name="library_sort_longest">Longest</string>
     <string name="library_empty_title">No sessions match this view</string>
-    <string name="library_empty_body">Try a different search term, chip filter, or sort option.</string>
-    <string name="library_sample_banner">Library is currently backed by elegant sample session metadata. Real file/session manifests can plug in later without changing the UI shell.</string>
+    <string name="library_empty_body">Start and stop tracking to archive session intelligence here, or try a different search term, chip filter, or sort option.</string>
+    <string name="library_sample_banner">Archived sessions</string>
     <string name="library_card_duration">Duration: %1$s</string>
     <string name="library_card_speech_ratio">Speech %1$d%%</string>
     <string name="library_card_disturbance">%1$d disturbances</string>
@@ -79,17 +80,27 @@
     <string name="detail_share">Share</string>
     <string name="detail_play">Play</string>
     <string name="detail_pause">Pause</string>
-    <string name="detail_playback_unavailable">Playback is unavailable in this build because raw audio storage is intentionally not wired yet. The control deck is ready for future file-backed integration.</string>
-    <string name="detail_loading_body">Session file is being prepared.</string>
+    <string name="detail_playback_unavailable">Archived audio file is unavailable for this session.</string>
+    <string name="detail_loading_body">Preparing archived audio for playback...</string>
+    <string name="detail_playback_ready">Archived audio is ready to play or share.</string>
     <string name="detail_error_body">This session file could not be loaded. Metadata is still available.</string>
     <string name="detail_share_placeholder">Export/share placeholder</string>
     <string name="detail_delete_placeholder">Delete placeholder</string>
     <string name="detail_rename_placeholder">Rename preview</string>
     <string name="detail_unknown_time">Unknown</string>
     <string name="detail_seek_content_description">Playback timeline</string>
-    <string name="detail_session_badge">Metadata preview</string>
+    <string name="detail_session_badge">Archived session</string>
     <string name="detail_playback_badge">Playback deck</string>
-    <string name="detail_action_hint">Playback actions are placeholders until file-backed session manifests are connected.</string>
+    <string name="detail_action_hint">Rename, delete, or share the stored audio file from this session.</string>
+    <string name="detail_rename_dialog_title">Rename session</string>
+    <string name="detail_rename_empty">Session title cannot be empty</string>
+    <string name="detail_delete_confirm_title">Delete session?</string>
+    <string name="detail_delete_confirm_body">This removes the archived session entry from the library.</string>
+    <string name="detail_action_failed">Action could not be completed</string>
+    <string name="detail_share_chooser">Share session summary</string>
+    <string name="detail_playback_failed">Audio playback could not start</string>
+    <string name="detail_share_failed">Audio file could not be shared</string>
+    <string name="detail_share_audio_chooser">Share audio file</string>
 
     <string name="audio_sort_default">Newest</string>
     <string-array name="audio_sort_options">
