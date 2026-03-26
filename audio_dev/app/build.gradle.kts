@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.android.vad.silero)
+    implementation("androidx.recyclerview:recyclerview:1.2.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

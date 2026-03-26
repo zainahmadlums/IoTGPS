@@ -1,7 +1,25 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Audio" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+<resources>
+    <style name="Theme.Audio" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/dt_emerald</item>
+        <item name="colorOnPrimary">@color/dt_text_on_accent</item>
+        <item name="colorPrimaryContainer">@color/dt_surface_strong</item>
+        <item name="colorSecondary">@color/dt_cyan</item>
+        <item name="colorOnSecondary">@color/dt_text_on_accent</item>
+        <item name="colorSecondaryContainer">@color/dt_surface</item>
+        <item name="colorTertiary">@color/dt_blue</item>
+        <item name="colorSurface">@color/dt_surface</item>
+        <item name="colorSurfaceVariant">@color/dt_surface_soft</item>
+        <item name="colorOnSurface">@color/dt_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/dt_text_secondary</item>
+        <item name="colorOutline">@color/dt_outline</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/dt_background</item>
+        <item name="android:windowBackground">@color/dt_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="materialCardViewStyle">@style/Widget.DeployTeach.GlassCard</item>
+        <item name="materialButtonStyle">@style/Widget.DeployTeach.Button.Primary</item>
+        <item name="toolbarStyle">@style/Widget.DeployTeach.Toolbar</item>
     </style>
 </resources>

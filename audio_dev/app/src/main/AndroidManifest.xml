@@ -17,6 +17,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Audio">
         <activity
+            android:name=".ui.detail.AudioDetailActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.MainActivity"
             android:exported="true">
             <intent-filter>

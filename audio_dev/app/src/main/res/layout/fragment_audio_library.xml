@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingStart="20dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="20dp">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/library_toolbar"
+        style="@style/Widget.DeployTeach.Toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:title="@string/library_title"
+        android:subtitle="@string/library_subtitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/library_banner_card"
+        style="@style/Widget.DeployTeach.GlassCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:cardElevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/library_toolbar">
+
+        <TextView
+            android:id="@+id/library_sample_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="18dp"
+            android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+            tools:text="Library is currently backed by elegant sample session metadata." />
+    </com.google.android.material.card.MaterialCardView>
+
+    <LinearLayout
+        android:id="@+id/library_search_row"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/library_banner_card">
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DeployTeach.TextInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/library_search_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/library_search_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:textColor="@color/dt_text_primary"
+                android:textColorHint="@color/dt_text_muted" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DeployTeach.TextInput"
+            android:layout_width="132dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:hint="@string/library_sort_label"
+            app:endIconMode="dropdown_menu">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/library_sort_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none"
+                android:textColor="@color/dt_text_primary"
+                android:textColorHint="@color/dt_text_muted" />
+        </com.google.android.material.textfield.TextInputLayout>
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:id="@+id/library_chip_scroll"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:overScrollMode="never"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/library_search_row">
+
+        <com.google.android.material.chip.ChipGroup
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/filter_chip_all"
+                style="@style/Widget.DeployTeach.FilterChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_filter_all" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/filter_chip_today"
+                style="@style/Widget.DeployTeach.FilterChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_filter_today" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/filter_chip_speech_heavy"
+                style="@style/Widget.DeployTeach.FilterChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_filter_speech_heavy" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/filter_chip_disturbance"
+                style="@style/Widget.DeployTeach.FilterChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_filter_disturbance" />
+        </com.google.android.material.chip.ChipGroup>
+    </HorizontalScrollView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/audio_library_recycler"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:paddingBottom="120dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/library_chip_scroll"
+        tools:listitem="@layout/item_audio_session" />
+
+    <LinearLayout
+        android:id="@+id/library_empty_state"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="28dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/audio_library_recycler"
+        app:layout_constraintEnd_toEndOf="@id/audio_library_recycler"
+        app:layout_constraintStart_toStartOf="@id/audio_library_recycler"
+        app:layout_constraintTop_toTopOf="@id/audio_library_recycler">
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.DeployTeach.GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/library_empty_title"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Title" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="@string/library_empty_body"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,11 +1,8 @@
 package com.example.audio.ui;
 
 import android.Manifest;
-import android.content.res.ColorStateList;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.widget.Button;
-import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -22,19 +19,18 @@ import com.example.audio.data.SpeechEvent;
 import com.example.audio.pipeline.SessionSummary;
 import com.example.audio.reverb.ReverbResult;
 import com.example.audio.service.AudioTrackingService;
+import com.example.audio.ui.dashboard.DashboardFragment;
+import com.example.audio.ui.library.AudioLibraryFragment;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity implements SessionRepository.SpeechStateListener {
 
     private static final int AUDIO_PERMISSION_REQUEST_CODE = 2001;
+    private static final String TAG_DASHBOARD = "dashboard";
+    private static final String TAG_LIBRARY = "library";
 
     private SessionViewModel sessionViewModel;
-    private TextView sessionRunningText;
-    private TextView speechStateText;
-    private TextView disturbanceStateText;
-    private TextView reverbStateText;
-    private TextView sessionSummaryText;
-    private Button startButton;
-    private Button stopButton;
+    private BottomNavigationView bottomNavigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,36 +45,28 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
             return insets;
         });
 
-        sessionRunningText = findViewById(R.id.session_running_text);
-        speechStateText = findViewById(R.id.speech_state_text);
-        disturbanceStateText = findViewById(R.id.disturbance_state_text);
-        reverbStateText = findViewById(R.id.reverb_state_text);
-        sessionSummaryText = findViewById(R.id.session_summary_text);
-        startButton = findViewById(R.id.start_button);
-        stopButton = findViewById(R.id.stop_button);
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.navigation_library) {
+                showLibraryScreen();
+                return true;
+            }
 
-        startButton.setOnClickListener(view -> requestAudioAndStart());
-        stopButton.setOnClickListener(view -> stopTracking());
-        renderSessionState();
-    }
+            showDashboardScreen();
+            return true;
+        });
 
-    public SessionViewModel getSessionViewModel() {
-        return sessionViewModel;
+        if (savedInstanceState == null) {
+            bottomNavigationView.setSelectedItemId(R.id.navigation_dashboard);
+            showDashboardScreen();
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         SessionRepository.getInstance().addSpeechStateListener(this);
-        sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
-        SpeechEvent latestSpeechEvent = SessionRepository.getInstance().getLatestSpeechEvent();
-        if (latestSpeechEvent != null) {
-            sessionViewModel.setSpeechActive(latestSpeechEvent.isSpeech());
-            sessionViewModel.setDisturbanceActive(latestSpeechEvent.isDisturbance());
-            sessionViewModel.setReverbLevel(latestSpeechEvent.getReverbLevel());
-        }
-        sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
-        renderSessionState();
+        refreshSessionStateFromRepository();
     }
 
     @Override
@@ -104,11 +92,37 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
             sessionViewModel.setSessionRunning(false);
             sessionViewModel.setSpeechActive(false);
             sessionViewModel.setDisturbanceActive(false);
-            renderSessionState();
+            notifyDashboardStateChanged();
         }
     }
 
-    private void requestAudioAndStart() {
+    @Override
+    public void onSpeechStateChanged(SpeechEvent speechEvent) {
+        sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
+        sessionViewModel.setSpeechActive(speechEvent.isSpeech());
+        sessionViewModel.setDisturbanceActive(speechEvent.isDisturbance());
+        sessionViewModel.setReverbLevel(speechEvent.getReverbLevel());
+        sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
+        notifyDashboardStateChanged();
+    }
+
+    public SessionViewModel getSessionViewModel() {
+        return sessionViewModel;
+    }
+
+    public void refreshSessionStateFromRepository() {
+        sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
+        SpeechEvent latestSpeechEvent = SessionRepository.getInstance().getLatestSpeechEvent();
+        if (latestSpeechEvent != null) {
+            sessionViewModel.setSpeechActive(latestSpeechEvent.isSpeech());
+            sessionViewModel.setDisturbanceActive(latestSpeechEvent.isDisturbance());
+            sessionViewModel.setReverbLevel(latestSpeechEvent.getReverbLevel());
+        }
+        sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
+        notifyDashboardStateChanged();
+    }
+
+    public void requestAudioAndStartTracking() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED) {
             startTracking();
@@ -122,6 +136,20 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         );
     }
 
+    public void stopTracking() {
+        SessionSummary latestSummary = SessionRepository.getInstance().getSessionSummary();
+        AudioTrackingService.requestStop(this);
+        sessionViewModel.setSessionRunning(false);
+        sessionViewModel.setSpeechActive(false);
+        sessionViewModel.setDisturbanceActive(false);
+        sessionViewModel.setSessionSummary(latestSummary);
+        notifyDashboardStateChanged();
+    }
+
+    public void navigateToLibrary() {
+        bottomNavigationView.setSelectedItemId(R.id.navigation_library);
+    }
+
     private void startTracking() {
         AudioTrackingService.startService(this);
         sessionViewModel.setSessionRunning(true);
@@ -129,108 +157,28 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         sessionViewModel.setDisturbanceActive(false);
         sessionViewModel.setReverbLevel(ReverbResult.Level.LOW);
         sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
-        renderSessionState();
+        notifyDashboardStateChanged();
     }
 
-    private void stopTracking() {
-        SessionSummary latestSummary = SessionRepository.getInstance().getSessionSummary();
-        AudioTrackingService.requestStop(this);
-        sessionViewModel.setSessionRunning(false);
-        sessionViewModel.setSpeechActive(false);
-        sessionViewModel.setDisturbanceActive(false);
-        sessionViewModel.setSessionSummary(latestSummary);
-        renderSessionState();
+    private void showDashboardScreen() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.main_nav_host, new DashboardFragment(), TAG_DASHBOARD)
+                .commit();
     }
 
-    private void renderSessionState() {
-        sessionRunningText.setText(getString(
-                R.string.session_running_format,
-                sessionViewModel.isSessionRunning()
-                        ? getString(R.string.session_running)
-                        : getString(R.string.session_stopped)
-        ));
-        speechStateText.setText(getString(
-                R.string.current_speech_format,
-                toDisplayLabel(sessionViewModel.getSpeechState())
-        ));
-        disturbanceStateText.setText(getString(
-                R.string.current_disturbance_format,
-                sessionViewModel.isDisturbanceActive()
-                        ? getString(R.string.disturbance_detected)
-                        : getString(R.string.disturbance_clear)
-        ));
-        reverbStateText.setText(getString(
-                R.string.current_reverb_format,
-                sessionViewModel.getReverbLevel().name()
-        ));
-        sessionSummaryText.setText(buildSessionSummaryText(sessionViewModel.getSessionSummary()));
-        updateButtonState();
+    private void showLibraryScreen() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.main_nav_host, new AudioLibraryFragment(), TAG_LIBRARY)
+                .commit();
     }
 
-    @Override
-    public void onSpeechStateChanged(SpeechEvent speechEvent) {
-        sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
-        sessionViewModel.setSpeechActive(speechEvent.isSpeech());
-        sessionViewModel.setDisturbanceActive(speechEvent.isDisturbance());
-        sessionViewModel.setReverbLevel(speechEvent.getReverbLevel());
-        sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
-        renderSessionState();
-    }
-
-    private String toDisplayLabel(SessionState sessionState) {
-        switch (sessionState) {
-            case SPEECH:
-                return getString(R.string.speech_state_speech);
-            case SILENCE:
-                return getString(R.string.speech_state_silence);
-            case IDLE:
-            default:
-                return getString(R.string.speech_state_idle);
+    private void notifyDashboardStateChanged() {
+        DashboardFragment dashboardFragment = (DashboardFragment)
+                getSupportFragmentManager().findFragmentByTag(TAG_DASHBOARD);
+        if (dashboardFragment != null) {
+            dashboardFragment.renderSessionState();
         }
-    }
-
-    private String buildSessionSummaryText(SessionSummary sessionSummary) {
-        if (sessionSummary == null) {
-            return getString(R.string.session_summary_empty);
-        }
-
-        if (sessionViewModel.isSessionRunning()) {
-            return getString(
-                    R.string.session_summary_live_format,
-                    Math.round(sessionSummary.getSpeakingRatio() * 100.0f),
-                    sessionSummary.getDisturbanceCount(),
-                    sessionSummary.getCoarseReverbLevel().name()
-            );
-        }
-
-        return getString(
-                R.string.session_summary_format,
-                Math.round(sessionSummary.getSpeakingRatio() * 100.0f),
-                sessionSummary.getDisturbanceCount(),
-                sessionSummary.getCoarseReverbLevel().name()
-        );
-    }
-
-    private void updateButtonState() {
-        boolean running = sessionViewModel.isSessionRunning();
-        startButton.setEnabled(!running);
-        stopButton.setEnabled(running);
-
-        startButton.setBackgroundTintList(ColorStateList.valueOf(
-                ContextCompat.getColor(
-                        this,
-                        running ? R.color.button_disabled_background : R.color.button_start_background
-                )
-        ));
-        stopButton.setBackgroundTintList(ColorStateList.valueOf(
-                ContextCompat.getColor(
-                        this,
-                        running ? R.color.button_stop_background : R.color.button_disabled_background
-                )
-        ));
-        startButton.setTextColor(ContextCompat.getColor(this, R.color.button_text));
-        stopButton.setTextColor(ContextCompat.getColor(this, R.color.button_text));
-        startButton.setAlpha(running ? 0.65f : 1.0f);
-        stopButton.setAlpha(running ? 1.0f : 0.65f);
     }
 }

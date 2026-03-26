@@ -1,0 +1,107 @@
+<resources>
+
+    <style name="TextAppearance.DeployTeach.Display" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:textColor">@color/dt_text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.DeployTeach.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textColor">@color/dt_text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.DeployTeach.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/dt_text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.DeployTeach.Section" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/dt_text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.DeployTeach.Label" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textColor">@color/dt_text_secondary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.DeployTeach.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/dt_text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.DeployTeach.MetricValue" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/dt_text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="Widget.DeployTeach.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="titleTextColor">@color/dt_text_primary</item>
+        <item name="subtitleTextColor">@color/dt_text_secondary</item>
+        <item name="navigationIconTint">@color/dt_text_primary</item>
+    </style>
+
+    <style name="Widget.DeployTeach.GlassCard" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/dt_glass</item>
+        <item name="strokeColor">@color/dt_outline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DeployTeach.Large</item>
+    </style>
+
+    <style name="Widget.DeployTeach.GlassCard.Strong" parent="Widget.DeployTeach.GlassCard">
+        <item name="cardBackgroundColor">@color/dt_glass_strong</item>
+    </style>
+
+    <style name="Widget.DeployTeach.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/dt_text_on_accent</item>
+        <item name="backgroundTint">@color/dt_emerald</item>
+        <item name="iconTint">@color/dt_text_on_accent</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DeployTeach.Medium</item>
+    </style>
+
+    <style name="Widget.DeployTeach.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/dt_text_primary</item>
+        <item name="iconTint">@color/dt_text_primary</item>
+        <item name="strokeColor">@color/dt_outline_strong</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DeployTeach.Medium</item>
+    </style>
+
+    <style name="Widget.DeployTeach.Button.Stop" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/dt_danger</item>
+        <item name="iconTint">@color/dt_danger</item>
+        <item name="strokeColor">@color/dt_danger</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DeployTeach.Medium</item>
+    </style>
+
+    <style name="Widget.DeployTeach.FilterChip" parent="Widget.Material3.Chip.Filter">
+        <item name="chipBackgroundColor">@color/chip_filter_bg</item>
+        <item name="android:textColor">@color/chip_filter_text</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DeployTeach.Pill</item>
+    </style>
+
+    <style name="Widget.DeployTeach.TextInput" parent="Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+        <item name="boxBackgroundColor">@color/dt_glass</item>
+        <item name="boxStrokeColor">@color/dt_outline_strong</item>
+        <item name="hintTextColor">@color/dt_text_muted</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DeployTeach.Medium</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.DeployTeach" parent="" />
+
+    <style name="ShapeAppearanceOverlay.DeployTeach.Large" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.DeployTeach.Medium" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.DeployTeach.Pill" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">999dp</item>
+    </style>
+</resources>

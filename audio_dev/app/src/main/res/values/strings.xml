@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">audio</string>
+    <string name="app_name">DeployTeach</string>
     <string name="session_placeholder">DeployTeach audio tracking scaffold</string>
     <string name="session_running_format">Session: %1$s</string>
     <string name="current_speech_format">Speech: %1$s</string>
@@ -20,4 +20,81 @@
     <string name="audio_tracking_channel_name">Audio Tracking</string>
     <string name="audio_tracking_notification_title">Audio tracking active</string>
     <string name="audio_tracking_notification_text">Microphone capture service is running</string>
+
+    <string name="dashboard_tab">Dashboard</string>
+    <string name="library_tab">Audio Library</string>
+    <string name="app_subtitle">Audio Intelligence</string>
+    <string name="dashboard_hero_label">Mission Control</string>
+    <string name="dashboard_hero_body">A live command deck for tracking classroom speech, disturbances, and room behavior without leaving the session pipeline.</string>
+    <string name="dashboard_status_running">Tracking live</string>
+    <string name="dashboard_status_stopped">Tracking paused</string>
+    <string name="dashboard_recent_title">Recent Session Preview</string>
+    <string name="dashboard_recent_empty">No archived sessions yet. The library screen is using premium sample cards until local metadata storage is wired.</string>
+    <string name="dashboard_recent_sample">Design preview is active. Open Audio Library to browse the premium session catalog layout.</string>
+    <string name="dashboard_quick_link">View Audio Library</string>
+    <string name="dashboard_metric_speech">Speech</string>
+    <string name="dashboard_metric_disturbance">Disturbance</string>
+    <string name="dashboard_metric_reverb">Reverb</string>
+    <string name="dashboard_metric_speech_value">%1$d%% active</string>
+    <string name="dashboard_metric_disturbance_value">%1$d events</string>
+    <string name="dashboard_metric_reverb_value">%1$s profile</string>
+    <string name="dashboard_session_state_label">Session status</string>
+    <string name="dashboard_speech_state_label">Speech state</string>
+    <string name="dashboard_disturbance_state_label">Disturbance</string>
+    <string name="dashboard_reverb_state_label">Reverb</string>
+    <string name="dashboard_summary_label">Latest summary</string>
+    <string name="dashboard_live_capture">Live capture</string>
+    <string name="dashboard_preview_unavailable">No session cards available yet</string>
+
+    <string name="library_title">Audio Library</string>
+    <string name="library_subtitle">Browse session metadata, debug captures, and future recording manifests.</string>
+    <string name="library_search_hint">Search sessions, filenames, tags</string>
+    <string name="library_sort_label">Sort</string>
+    <string name="library_filter_all">All</string>
+    <string name="library_filter_today">Today</string>
+    <string name="library_filter_speech_heavy">Speech-heavy</string>
+    <string name="library_filter_disturbance">Disturbance</string>
+    <string name="library_sort_newest">Newest</string>
+    <string name="library_sort_oldest">Oldest</string>
+    <string name="library_sort_longest">Longest</string>
+    <string name="library_empty_title">No sessions match this view</string>
+    <string name="library_empty_body">Try a different search term, chip filter, or sort option.</string>
+    <string name="library_sample_banner">Library is currently backed by elegant sample session metadata. Real file/session manifests can plug in later without changing the UI shell.</string>
+    <string name="library_card_duration">Duration: %1$s</string>
+    <string name="library_card_speech_ratio">Speech %1$d%%</string>
+    <string name="library_card_disturbance">%1$d disturbances</string>
+    <string name="library_card_reverb">Reverb %1$s</string>
+    <string name="library_card_open">Open detail</string>
+
+    <string name="detail_title_fallback">Session Detail</string>
+    <string name="detail_subtitle">Deep view into stored session intelligence and future playback controls.</string>
+    <string name="detail_insights_title">Session Insights</string>
+    <string name="detail_playback_title">Playback</string>
+    <string name="detail_actions_title">Actions</string>
+    <string name="detail_file_size">File size</string>
+    <string name="detail_duration">Duration</string>
+    <string name="detail_timestamp">Timestamp</string>
+    <string name="detail_rename">Rename</string>
+    <string name="detail_delete">Delete</string>
+    <string name="detail_share">Share</string>
+    <string name="detail_play">Play</string>
+    <string name="detail_pause">Pause</string>
+    <string name="detail_playback_unavailable">Playback is unavailable in this build because raw audio storage is intentionally not wired yet. The control deck is ready for future file-backed integration.</string>
+    <string name="detail_loading_body">Session file is being prepared.</string>
+    <string name="detail_error_body">This session file could not be loaded. Metadata is still available.</string>
+    <string name="detail_share_placeholder">Export/share placeholder</string>
+    <string name="detail_delete_placeholder">Delete placeholder</string>
+    <string name="detail_rename_placeholder">Rename preview</string>
+    <string name="detail_unknown_time">Unknown</string>
+    <string name="detail_seek_content_description">Playback timeline</string>
+    <string name="detail_session_badge">Metadata preview</string>
+    <string name="detail_playback_badge">Playback deck</string>
+    <string name="detail_action_hint">Playback actions are placeholders until file-backed session manifests are connected.</string>
+
+    <string name="audio_sort_default">Newest</string>
+    <string-array name="audio_sort_options">
+        <item>@string/library_sort_newest</item>
+        <item>@string/library_sort_oldest</item>
+        <item>@string/library_sort_longest</item>
+    </string-array>
 </resources>

@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/detail_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app_aurora"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingStart="20dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="28dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/detail_toolbar"
+            style="@style/Widget.DeployTeach.Toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:navigationIcon="@android:drawable/ic_menu_revert"
+            android:title="@string/detail_title_fallback"
+            android:subtitle="@string/detail_subtitle" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.DeployTeach.GlassCard.Strong"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="22dp">
+
+                <TextView
+                    android:id="@+id/detail_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_status_pill"
+                    android:paddingStart="14dp"
+                    android:paddingTop="7dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="7dp"
+                    android:text="@string/detail_session_badge"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                    android:textColor="@color/dt_emerald" />
+
+                <TextView
+                    android:id="@+id/detail_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Headline"
+                    tools:text="Aurora Lecture Pass" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/detail_timestamp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                <TextView
+                    android:id="@+id/detail_timestamp_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                    tools:text="Mar 26, 2026 • 12:30 PM&#10;12:30 PM - 1:15 PM" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/detail_duration"
+                            android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                        <TextView
+                            android:id="@+id/detail_duration_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textAppearance="@style/TextAppearance.DeployTeach.Title"
+                            tools:text="45m 12s" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/detail_file_size"
+                            android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                        <TextView
+                            android:id="@+id/detail_file_size_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textAppearance="@style/TextAppearance.DeployTeach.Title"
+                            tools:text="24.8 MB" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="@string/detail_playback_title"
+            android:textAppearance="@style/TextAppearance.DeployTeach.Section" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.DeployTeach.GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_status_pill"
+                    android:paddingStart="14dp"
+                    android:paddingTop="7dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="7dp"
+                    android:text="@string/detail_playback_badge"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                    android:textColor="@color/dt_cyan" />
+
+                <TextView
+                    android:id="@+id/detail_unavailable_body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                    tools:text="Playback is unavailable in this build because raw audio storage is intentionally not wired yet." />
+
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                    android:id="@+id/detail_progress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:contentDescription="@string/detail_seek_content_description"
+                    app:indicatorColor="@color/dt_cyan"
+                    app:trackColor="@color/dt_surface_soft" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/detail_current_time"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                        tools:text="00:15" />
+
+                    <TextView
+                        android:id="@+id/detail_total_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                        tools:text="45:12" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/detail_play_pause_button"
+                    style="@style/Widget.DeployTeach.Button.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:minHeight="56dp"
+                    android:text="@string/detail_play" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="@string/detail_insights_title"
+            android:textAppearance="@style/TextAppearance.DeployTeach.Section" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.DeployTeach.GlassCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/dashboard_metric_speech"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                    <TextView
+                        android:id="@+id/detail_speech_ratio_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.MetricValue"
+                        tools:text="72%" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.DeployTeach.GlassCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/dashboard_metric_disturbance"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                    <TextView
+                        android:id="@+id/detail_disturbance_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.MetricValue"
+                        tools:text="3" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.DeployTeach.GlassCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/dashboard_metric_reverb"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                    <TextView
+                        android:id="@+id/detail_reverb_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textAppearance="@style/TextAppearance.DeployTeach.MetricValue"
+                        tools:text="LOW" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="@string/detail_actions_title"
+            android:textAppearance="@style/TextAppearance.DeployTeach.Section" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.DeployTeach.GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detail_rename_button"
+                        style="@style/Widget.DeployTeach.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="52dp"
+                        android:text="@string/detail_rename" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detail_delete_button"
+                        style="@style/Widget.DeployTeach.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:minHeight="52dp"
+                        android:text="@string/detail_delete" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detail_share_button"
+                        style="@style/Widget.DeployTeach.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:minHeight="52dp"
+                        android:text="@string/detail_share" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/detail_action_hint"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.DeployTeach.GlassCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="14dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardElevation="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="156dp"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/audio_item_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Title"
+                    tools:text="Aurora Lecture Pass" />
+
+                <TextView
+                    android:id="@+id/audio_item_filename"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                    tools:text="deployteach_aurora_lecture_01.aud" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/audio_item_open_icon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_status_pill"
+                android:padding="10dp"
+                android:src="@android:drawable/ic_menu_view"
+                android:tint="@color/dt_text_primary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/audio_item_timestamp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+            tools:text="Mar 26, 2026 • 12:30 PM" />
+
+        <TextView
+            android:id="@+id/audio_item_time_range"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+            tools:text="12:30 PM - 1:15 PM" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/audio_item_duration"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                tools:text="Duration: 45m 12s" />
+
+            <TextView
+                android:id="@+id/audio_item_file_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                tools:text="24.8 MB" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/audio_item_speech_ratio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_status_pill"
+                android:paddingStart="12dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp"
+                android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                android:textColor="@color/dt_cyan"
+                tools:text="Speech 72%" />
+
+            <TextView
+                android:id="@+id/audio_item_disturbance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_status_pill"
+                android:paddingStart="12dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp"
+                android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                android:textColor="@color/dt_danger"
+                tools:text="3 disturbances" />
+
+            <TextView
+                android:id="@+id/audio_item_reverb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_status_pill"
+                android:paddingStart="12dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp"
+                android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                android:textColor="@color/dt_emerald"
+                tools:text="Reverb LOW" />
+        </LinearLayout>
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

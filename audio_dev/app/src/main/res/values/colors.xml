@@ -1,9 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="dt_background">#090C12</color>
+    <color name="dt_background_elevated">#101723</color>
+    <color name="dt_surface">#131C2A</color>
+    <color name="dt_surface_strong">#182336</color>
+    <color name="dt_surface_soft">#1D293B</color>
+    <color name="dt_glass">#1EFFFFFF</color>
+    <color name="dt_glass_strong">#26FFFFFF</color>
+    <color name="dt_outline">#2B3C57</color>
+    <color name="dt_outline_strong">#4B6B93</color>
+
+    <color name="dt_text_primary">#F4F7FB</color>
+    <color name="dt_text_secondary">#B8C6DA</color>
+    <color name="dt_text_muted">#8595AE</color>
+    <color name="dt_text_on_accent">#081018</color>
+
+    <color name="dt_emerald">#39E6A7</color>
+    <color name="dt_cyan">#5FE2FF</color>
+    <color name="dt_blue">#5C8DFF</color>
+    <color name="dt_teal">#19D7C0</color>
+    <color name="dt_warning">#FFB866</color>
+    <color name="dt_danger">#FF6A8A</color>
+
+    <color name="dt_status_running">#3AE1A1</color>
+    <color name="dt_status_stopped">#71839F</color>
+    <color name="dt_status_speech">#5FE2FF</color>
+    <color name="dt_status_silence">#FFB866</color>
+    <color name="dt_status_disturbance">#FF6A8A</color>
+    <color name="dt_status_reverb_low">#39E6A7</color>
+    <color name="dt_status_reverb_medium">#5C8DFF</color>
+    <color name="dt_status_reverb_high">#FFB866</color>
+
+    <color name="bottom_nav_active">#F4F7FB</color>
+    <color name="bottom_nav_inactive">#7D8DA8</color>
+    <color name="bottom_nav_bg">#CC0B111A</color>
+
+    <color name="button_start_background">#39E6A7</color>
+    <color name="button_stop_background">#FF6A8A</color>
+    <color name="button_disabled_background">#4F607A</color>
+    <color name="button_text">#081018</color>
+
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="button_start_background">#2E7D32</color>
-    <color name="button_stop_background">#B3261E</color>
-    <color name="button_disabled_background">#9AA0A6</color>
-    <color name="button_text">#FFFFFFFF</color>
 </resources>
