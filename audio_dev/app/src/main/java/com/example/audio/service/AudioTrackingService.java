@@ -20,9 +20,10 @@ import com.example.audio.audio.AudioConfig;
 import com.example.audio.audio.AudioRecorderManager;
 import com.example.audio.data.SessionArchiveEntry;
 import com.example.audio.data.SessionArchiveStore;
-import com.example.audio.data.SessionAudioFileManager;
+import com.example.audio.data.SessionMetadata;
+import com.example.audio.data.SessionMetadataFileManager;
+import com.example.audio.data.SessionMetadataStore;
 import com.example.audio.data.SessionRepository;
-import com.example.audio.data.WavSessionRecorder;
 import com.example.audio.disturbance.EnergySpikeDetector;
 import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.pipeline.AudioPipelineCoordinator;
@@ -32,8 +33,6 @@ import com.example.audio.reverb.EnergyDecayReverbEstimator;
 import com.example.audio.util.Logger;
 import com.example.audio.vad.SpeechDetectorFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Locale;
 
 public class AudioTrackingService extends Service {
@@ -51,8 +50,6 @@ public class AudioTrackingService extends Service {
     private FrameProcessingDiagnostics diagnostics;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean restartInFlight;
-    private WavSessionRecorder wavSessionRecorder;
-    private File currentSessionAudioFile;
     private int debugFrameBridgeLogs;
 
     public static Intent createStartIntent(Context context) {
@@ -143,7 +140,6 @@ public class AudioTrackingService extends Service {
 
         try {
             sessionRepository.startSession();
-            startSessionAudioCapture(audioRecorderManager.getAudioConfig());
             audioRecorderManager.start(new AudioRecorderManager.FrameCallback() {
                 @Override
                 public void onFrame(short[] frame, long timestampMillis) {
@@ -159,7 +155,6 @@ public class AudioTrackingService extends Service {
                                         + timestampMillis
                         );
                     }
-                    writeAudioFrame(frame);
                     FrameAnalysisResult analysisResult =
                             audioPipelineCoordinator.process(frame, timestampMillis);
                     diagnostics.record(analysisResult);
@@ -173,7 +168,6 @@ public class AudioTrackingService extends Service {
                 }
             });
         } catch (RuntimeException runtimeException) {
-            abortSessionAudioCapture();
             sessionRepository.stopSession();
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -185,9 +179,8 @@ public class AudioTrackingService extends Service {
         if (audioRecorderManager != null) {
             audioRecorderManager.stop();
         }
-        ArchivedAudioArtifact archivedAudioArtifact = finishSessionAudioCapture();
         if (sessionRepository != null && sessionRepository.isSessionRunning()) {
-            archiveSessionSummary(archivedAudioArtifact);
+            persistSessionMetadata();
         }
         if (sessionRepository != null) {
             sessionRepository.stopSession();
@@ -200,106 +193,53 @@ public class AudioTrackingService extends Service {
         stopForeground(STOP_FOREGROUND_REMOVE);
     }
 
-    private void archiveSessionSummary(ArchivedAudioArtifact archivedAudioArtifact) {
+    private void persistSessionMetadata() {
         long startTimeMillis = sessionRepository.getSessionStartTimeMillis();
         long endTimeMillis = Math.max(startTimeMillis, sessionRepository.getSessionEndTimeMillis());
         if (startTimeMillis <= 0L || endTimeMillis <= 0L) {
             return;
         }
 
-        long durationMillis = Math.max(1_000L, endTimeMillis - startTimeMillis);
         SessionSummary sessionSummary = sessionRepository.getSessionSummary();
         String sessionId = "session-" + endTimeMillis;
-        String generatedFilename = archivedAudioArtifact != null
-                ? archivedAudioArtifact.generatedFilename
-                : String.format(
-                        Locale.US,
-                        "deployteach_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
-                        startTimeMillis
-                );
+        String metadataFileName = SessionMetadataFileManager.createOutputFile(this, startTimeMillis).getName();
         String title = String.format(
                 Locale.US,
                 "Session %1$tb %1$td • %1$tI:%1$tM %1$Tp",
                 startTimeMillis
         );
 
+        SessionMetadata sessionMetadata = SessionMetadataStore.getInstance().buildMetadata(
+                sessionId,
+                title,
+                metadataFileName,
+                startTimeMillis,
+                endTimeMillis,
+                sessionSummary != null ? sessionSummary.getSpeakingRatio() : 0.0f,
+                sessionSummary != null ? sessionSummary.getDisturbanceCount() : 0,
+                sessionSummary != null
+                        ? sessionSummary.getCoarseReverbLevel()
+                        : com.example.audio.reverb.ReverbResult.Level.LOW,
+                sessionRepository.getSpeechEvents(),
+                audioRecorderManager != null ? audioRecorderManager.getAudioConfig() : SpeechDetectorFactory.activeAudioConfig()
+        );
+        long fileSizeBytes = SessionMetadataStore.getInstance().writeMetadata(this, sessionMetadata);
+
         SessionArchiveStore.getInstance().archiveSession(
                 this,
                 new SessionArchiveEntry(
                         sessionId,
                         title,
-                        generatedFilename,
+                        metadataFileName,
                         startTimeMillis,
                         endTimeMillis,
-                        durationMillis,
-                        archivedAudioArtifact != null
-                                ? archivedAudioArtifact.fileSizeBytes
-                                : estimateCaptureFootprintBytes(durationMillis),
-                        sessionSummary != null ? sessionSummary.getSpeakingRatio() : 0.0f,
-                        sessionSummary != null ? sessionSummary.getDisturbanceCount() : 0,
-                        sessionSummary != null
-                                ? sessionSummary.getCoarseReverbLevel()
-                                : com.example.audio.reverb.ReverbResult.Level.LOW
+                        sessionMetadata.getDurationMillis(),
+                        fileSizeBytes,
+                        sessionMetadata.getSpeakingRatio(),
+                        sessionMetadata.getDisturbanceCount(),
+                        sessionMetadata.getReverbLevel()
                 )
         );
-    }
-
-    private long estimateCaptureFootprintBytes(long durationMillis) {
-        long seconds = Math.max(1L, durationMillis / 1000L);
-        return seconds * 96_000L;
-    }
-
-    private void startSessionAudioCapture(AudioConfig audioConfig) {
-        long startTimeMillis = sessionRepository.getSessionStartTimeMillis();
-        currentSessionAudioFile = SessionAudioFileManager.createOutputFile(this, startTimeMillis);
-        try {
-            wavSessionRecorder = new WavSessionRecorder(currentSessionAudioFile, audioConfig);
-        } catch (IOException ioException) {
-            currentSessionAudioFile = null;
-            throw new IllegalStateException("Failed to create archived audio file.", ioException);
-        }
-    }
-
-    private void writeAudioFrame(short[] frame) {
-        if (wavSessionRecorder == null) {
-            return;
-        }
-
-        try {
-            wavSessionRecorder.writeFrame(frame);
-        } catch (IOException ioException) {
-            Logger.e(TAG, "Failed to write session audio frame.", ioException);
-            abortSessionAudioCapture();
-        }
-    }
-
-    private ArchivedAudioArtifact finishSessionAudioCapture() {
-        if (wavSessionRecorder == null || currentSessionAudioFile == null) {
-            return null;
-        }
-
-        try {
-            long fileSizeBytes = wavSessionRecorder.finish();
-            ArchivedAudioArtifact archivedAudioArtifact = new ArchivedAudioArtifact(
-                    currentSessionAudioFile.getName(),
-                    fileSizeBytes
-            );
-            wavSessionRecorder = null;
-            currentSessionAudioFile = null;
-            return archivedAudioArtifact;
-        } catch (IOException ioException) {
-            Logger.e(TAG, "Failed to finalize archived audio file.", ioException);
-            abortSessionAudioCapture();
-            return null;
-        }
-    }
-
-    private void abortSessionAudioCapture() {
-        if (wavSessionRecorder != null) {
-            wavSessionRecorder.abort();
-        }
-        wavSessionRecorder = null;
-        currentSessionAudioFile = null;
     }
 
     private void restartTracking(String reason) {

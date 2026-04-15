@@ -64,13 +64,13 @@ public final class SessionArchiveStore {
             if (!entry.getId().equals(sessionId)) {
                 continue;
             }
-            String updatedFileName = SessionAudioFileManager.renameAudioFile(
+            String updatedFileName = SessionMetadataFileManager.renameMetadataFile(
                     context.getApplicationContext(),
                     entry.getGeneratedFilename(),
                     updatedTitle,
                     entry.getStartTimeMillis()
             );
-            long updatedFileSizeBytes = SessionAudioFileManager.resolveAudioFile(
+            long updatedFileSizeBytes = SessionMetadataFileManager.resolveMetadataFile(
                     context.getApplicationContext(),
                     updatedFileName
             ).length();
@@ -81,6 +81,13 @@ public final class SessionArchiveStore {
             );
             entries.set(index, renamedEntry);
             writeEntries(context.getApplicationContext(), entries);
+
+            SessionMetadataStore.getInstance().renameMetadata(
+                    context.getApplicationContext(),
+                    entry.getGeneratedFilename(),
+                    updatedFileName,
+                    updatedTitle
+            );
             return renamedEntry;
         }
         return null;
@@ -92,7 +99,7 @@ public final class SessionArchiveStore {
             if (!entries.get(index).getId().equals(sessionId)) {
                 continue;
             }
-            SessionAudioFileManager.deleteAudioFile(
+            SessionMetadataFileManager.deleteMetadataFile(
                     context.getApplicationContext(),
                     entries.get(index).getGeneratedFilename()
             );
@@ -105,7 +112,7 @@ public final class SessionArchiveStore {
 
     public synchronized boolean deleteAllSessions(Context context) {
         Context appContext = context.getApplicationContext();
-        boolean allDeleted = SessionAudioFileManager.deleteAllAudioFiles(appContext);
+        boolean allDeleted = SessionMetadataFileManager.deleteAllMetadataFiles(appContext);
         writeEntries(appContext, new ArrayList<>());
         return allDeleted;
     }

@@ -131,7 +131,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="26dp"
-            android:text="@string/detail_playback_title"
+            android:text="@string/detail_timeline_title"
             android:textAppearance="@style/TextAppearance.DeployTeach.Section" />
 
         <com.google.android.material.card.MaterialCardView
@@ -155,26 +155,23 @@
                     android:paddingTop="7dp"
                     android:paddingEnd="14dp"
                     android:paddingBottom="7dp"
-                    android:text="@string/detail_playback_badge"
+                    android:text="@string/detail_timeline_badge"
                     android:textAppearance="@style/TextAppearance.DeployTeach.Label"
                     android:textColor="@color/dt_cyan" />
 
                 <TextView
-                    android:id="@+id/detail_unavailable_body"
+                    android:id="@+id/detail_timeline_body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:textAppearance="@style/TextAppearance.DeployTeach.Body"
-                    tools:text="Playback is unavailable in this build because raw audio storage is intentionally not wired yet." />
+                    tools:text="Stored speech intervals are plotted below so you can inspect when the instructor was speaking across the full session." />
 
-                <com.google.android.material.progressindicator.LinearProgressIndicator
-                    android:id="@+id/detail_progress"
+                <com.example.audio.ui.detail.SpeechTimelineView
+                    android:id="@+id/detail_timeline_graph"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:contentDescription="@string/detail_seek_content_description"
-                    app:indicatorColor="@color/dt_cyan"
-                    app:trackColor="@color/dt_surface_soft" />
+                    android:layout_height="40dp"
+                    android:layout_marginTop="18dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -184,29 +181,26 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/detail_current_time"
+                        android:id="@+id/detail_start_time"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:textAppearance="@style/TextAppearance.DeployTeach.Label"
-                        tools:text="00:15" />
+                        tools:text="0:00 start" />
 
                     <TextView
-                        android:id="@+id/detail_total_time"
+                        android:id="@+id/detail_end_time"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textAppearance="@style/TextAppearance.DeployTeach.Label"
-                        tools:text="45:12" />
+                        tools:text="45:12 end" />
                 </LinearLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/detail_play_pause_button"
-                    style="@style/Widget.DeployTeach.Button.Primary"
+                <com.example.audio.ui.detail.SpeechBucketChartView
+                    android:id="@+id/detail_bucket_chart"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:minHeight="56dp"
-                    android:text="@string/detail_play" />
+                    android:layout_height="132dp"
+                    android:layout_marginTop="18dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -313,6 +307,59 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.DeployTeach.GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/detail_interval_stats_title"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
+
+                <TextView
+                    android:id="@+id/detail_total_speech_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                    tools:text="Total speech: 24m 14s" />
+
+                <TextView
+                    android:id="@+id/detail_total_silence_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                    tools:text="Total silence: 20m 58s" />
+
+                <TextView
+                    android:id="@+id/detail_interval_count_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                    tools:text="Speech intervals: 43" />
+
+                <TextView
+                    android:id="@+id/detail_longest_speech_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body"
+                    tools:text="Longest speech burst: 2m 04s" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:layout_width="wrap_content"

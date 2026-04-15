@@ -13,17 +13,12 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.audio.R;
 import com.example.audio.pipeline.SessionSummary;
-import com.example.audio.reverb.ReverbResult;
 import com.example.audio.ui.MainActivity;
 import com.example.audio.ui.SessionState;
 import com.example.audio.ui.SessionViewModel;
-import com.example.audio.ui.library.AudioLibraryRepository;
-import com.example.audio.ui.library.AudioSessionFormatter;
-import com.example.audio.ui.library.AudioSessionItem;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 
-import java.util.List;
 import java.util.Locale;
 
 public class DashboardFragment extends Fragment {
@@ -38,14 +33,9 @@ public class DashboardFragment extends Fragment {
     private TextView speechMetricValue;
     private TextView disturbanceMetricValue;
     private TextView reverbMetricValue;
-    private TextView recentPreviewTitle;
-    private TextView recentPreviewMeta;
-    private TextView recentPreviewBody;
     private MaterialCardView heroCard;
-    private MaterialCardView recentPreviewCard;
     private MaterialButton startButton;
     private MaterialButton stopButton;
-    private MaterialButton libraryButton;
 
     public DashboardFragment() {
         super(R.layout.fragment_dashboard);
@@ -67,7 +57,6 @@ public class DashboardFragment extends Fragment {
         sessionViewModel = new ViewModelProvider(requireActivity()).get(SessionViewModel.class);
 
         heroCard = view.findViewById(R.id.dashboard_hero_card);
-        recentPreviewCard = view.findViewById(R.id.recent_preview_card);
         heroLabelText = view.findViewById(R.id.hero_status_text);
         sessionStatusValue = view.findViewById(R.id.session_status_value);
         speechStatusValue = view.findViewById(R.id.speech_status_value);
@@ -77,12 +66,8 @@ public class DashboardFragment extends Fragment {
         speechMetricValue = view.findViewById(R.id.speech_metric_value);
         disturbanceMetricValue = view.findViewById(R.id.disturbance_metric_value);
         reverbMetricValue = view.findViewById(R.id.reverb_metric_value);
-        recentPreviewTitle = view.findViewById(R.id.recent_preview_title);
-        recentPreviewMeta = view.findViewById(R.id.recent_preview_meta);
-        recentPreviewBody = view.findViewById(R.id.recent_preview_body);
         startButton = view.findViewById(R.id.start_tracking_button);
         stopButton = view.findViewById(R.id.stop_tracking_button);
-        libraryButton = view.findViewById(R.id.view_library_button);
 
         startButton.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
@@ -92,11 +77,6 @@ public class DashboardFragment extends Fragment {
         stopButton.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).stopTracking();
-            }
-        });
-        libraryButton.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToLibrary();
             }
         });
 
@@ -150,30 +130,6 @@ public class DashboardFragment extends Fragment {
         stopButton.setEnabled(running);
         startButton.setAlpha(running ? 0.55f : 1.0f);
         stopButton.setAlpha(running ? 1.0f : 0.7f);
-
-        List<AudioSessionItem> libraryItems = AudioLibraryRepository.getInstance()
-                .getSessions(requireContext());
-        if (libraryItems.isEmpty()) {
-            recentPreviewTitle.setText(R.string.dashboard_preview_unavailable);
-            recentPreviewMeta.setText(R.string.dashboard_recent_title);
-            recentPreviewBody.setText(R.string.dashboard_recent_empty);
-            recentPreviewCard.setAlpha(0.9f);
-            return;
-        }
-
-        AudioSessionItem item = libraryItems.get(0);
-        recentPreviewTitle.setText(item.getTitle());
-        recentPreviewMeta.setText(
-                AudioSessionFormatter.formatDateTime(item.getStartTimeMillis())
-                        + " • "
-                        + AudioSessionFormatter.formatDuration(item.getDurationMillis())
-        );
-        recentPreviewBody.setText(getString(
-                R.string.session_summary_live_format,
-                Math.round(item.getSpeechRatio() * 100.0f),
-                item.getDisturbanceCount(),
-                item.getReverbLevel().name()
-        ));
     }
 
     private String buildSummaryText(SessionSummary sessionSummary, boolean running) {

@@ -4,7 +4,9 @@ import android.content.Context;
 
 import com.example.audio.data.SessionArchiveEntry;
 import com.example.audio.data.SessionArchiveStore;
-import com.example.audio.data.SessionAudioFileManager;
+import com.example.audio.data.SessionMetadata;
+import com.example.audio.data.SessionMetadataFileManager;
+import com.example.audio.data.SessionMetadataStore;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -55,15 +57,22 @@ public final class AudioLibraryRepository {
         return SessionArchiveStore.getInstance().deleteAllSessions(context);
     }
 
-    public File resolveAudioFile(Context context, AudioSessionItem item) {
-        return SessionAudioFileManager.resolveAudioFile(
+    public File resolveMetadataFile(Context context, AudioSessionItem item) {
+        return SessionMetadataFileManager.resolveMetadataFile(
+                context.getApplicationContext(),
+                item.getAudioFileName()
+        );
+    }
+
+    public SessionMetadata getSessionMetadata(Context context, AudioSessionItem item) {
+        return SessionMetadataStore.getInstance().readMetadata(
                 context.getApplicationContext(),
                 item.getAudioFileName()
         );
     }
 
     private AudioSessionItem toAudioSessionItem(Context context, SessionArchiveEntry entry) {
-        File audioFile = SessionAudioFileManager.resolveAudioFile(
+        File metadataFile = SessionMetadataFileManager.resolveMetadataFile(
                 context.getApplicationContext(),
                 entry.getGeneratedFilename()
         );
@@ -74,12 +83,12 @@ public final class AudioLibraryRepository {
                 entry.getStartTimeMillis(),
                 entry.getEndTimeMillis(),
                 entry.getDurationMillis(),
-                audioFile.exists() ? audioFile.length() : entry.getFileSizeBytes(),
+                metadataFile.exists() ? metadataFile.length() : entry.getFileSizeBytes(),
                 entry.getSpeechRatio(),
                 entry.getDisturbanceCount(),
                 entry.getReverbLevel(),
                 entry.getGeneratedFilename(),
-                audioFile.exists() && audioFile.length() > 44L,
+                false,
                 false
         );
     }

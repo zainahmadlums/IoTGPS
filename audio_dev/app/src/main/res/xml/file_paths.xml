@@ -3,4 +3,7 @@
     <files-path
         name="archived_audio"
         path="archived_audio/" />
+    <files-path
+        name="session_metadata"
+        path="session_metadata/" />
 </paths>

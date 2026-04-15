@@ -2,11 +2,7 @@ package com.example.audio.ui.detail;
 
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioAttributes;
-import android.media.MediaPlayer;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.InputType;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -19,46 +15,23 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.audio.R;
+import com.example.audio.data.SessionMetadata;
 import com.example.audio.ui.library.AudioLibraryRepository;
 import com.example.audio.ui.library.AudioSessionFormatter;
 import com.example.audio.ui.library.AudioSessionItem;
-import com.example.audio.util.Logger;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.File;
-import java.io.IOException;
 
 public class AudioDetailActivity extends AppCompatActivity {
 
-    private static final String TAG = "AudioDetailActivity";
     private static final String EXTRA_SESSION_ITEM = "extra_session_item";
-    private static final long PROGRESS_UPDATE_MILLIS = 250L;
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
     private AudioSessionItem sessionItem;
-    private MaterialButton playPauseButton;
-    private LinearProgressIndicator progressIndicator;
-    private TextView currentTimeText;
-    private TextView totalTimeText;
-    private TextView playbackBodyText;
-    private MediaPlayer mediaPlayer;
-    private boolean mediaPrepared;
-    private final Runnable progressUpdater = new Runnable() {
-        @Override
-        public void run() {
-            if (mediaPlayer == null || !mediaPrepared) {
-                return;
-            }
-            renderPlayback();
-            if (mediaPlayer.isPlaying()) {
-                handler.postDelayed(this, PROGRESS_UPDATE_MILLIS);
-            }
-        }
-    };
+    private SessionMetadata sessionMetadata;
 
     public static Intent createIntent(Context context, AudioSessionItem item) {
         Intent intent = new Intent(context, AudioDetailActivity.class);
@@ -79,17 +52,14 @@ public class AudioDetailActivity extends AppCompatActivity {
         });
 
         sessionItem = (AudioSessionItem) getIntent().getSerializableExtra(EXTRA_SESSION_ITEM);
+        if (sessionItem != null) {
+            sessionMetadata = AudioLibraryRepository.getInstance().getSessionMetadata(this, sessionItem);
+        }
+
         MaterialToolbar toolbar = findViewById(R.id.detail_toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
 
         bindSessionViews();
-    }
-
-    @Override
-    protected void onDestroy() {
-        handler.removeCallbacks(progressUpdater);
-        releaseMediaPlayer();
-        super.onDestroy();
     }
 
     private void bindSessionViews() {
@@ -101,14 +71,18 @@ public class AudioDetailActivity extends AppCompatActivity {
         TextView speechRatioText = findViewById(R.id.detail_speech_ratio_value);
         TextView disturbanceText = findViewById(R.id.detail_disturbance_value);
         TextView reverbText = findViewById(R.id.detail_reverb_value);
-        currentTimeText = findViewById(R.id.detail_current_time);
-        totalTimeText = findViewById(R.id.detail_total_time);
-        playbackBodyText = findViewById(R.id.detail_unavailable_body);
-        playPauseButton = findViewById(R.id.detail_play_pause_button);
+        TextView timelineBodyText = findViewById(R.id.detail_timeline_body);
+        TextView startTimeText = findViewById(R.id.detail_start_time);
+        TextView endTimeText = findViewById(R.id.detail_end_time);
+        TextView totalSpeechText = findViewById(R.id.detail_total_speech_value);
+        TextView totalSilenceText = findViewById(R.id.detail_total_silence_value);
+        TextView intervalCountText = findViewById(R.id.detail_interval_count_value);
+        TextView longestSpeechText = findViewById(R.id.detail_longest_speech_value);
+        SpeechTimelineView timelineView = findViewById(R.id.detail_timeline_graph);
+        SpeechBucketChartView bucketChartView = findViewById(R.id.detail_bucket_chart);
         MaterialButton renameButton = findViewById(R.id.detail_rename_button);
         MaterialButton deleteButton = findViewById(R.id.detail_delete_button);
         MaterialButton shareButton = findViewById(R.id.detail_share_button);
-        progressIndicator = findViewById(R.id.detail_progress);
 
         if (sessionItem == null) {
             titleText.setText(R.string.detail_title_fallback);
@@ -119,8 +93,16 @@ public class AudioDetailActivity extends AppCompatActivity {
             speechRatioText.setText("0%");
             disturbanceText.setText("0");
             reverbText.setText("LOW");
-            playbackBodyText.setText(R.string.detail_error_body);
-            playPauseButton.setEnabled(false);
+            timelineBodyText.setText(R.string.detail_error_body);
+            startTimeText.setText(R.string.detail_unknown_time);
+            endTimeText.setText(R.string.detail_unknown_time);
+            totalSpeechText.setText(getString(R.string.detail_total_speech_format, getString(R.string.detail_unknown_time)));
+            totalSilenceText.setText(getString(R.string.detail_total_silence_format, getString(R.string.detail_unknown_time)));
+            intervalCountText.setText(getString(R.string.detail_interval_count_format, 0));
+            longestSpeechText.setText(getString(R.string.detail_longest_speech_format, getString(R.string.detail_unknown_time)));
+            renameButton.setEnabled(false);
+            deleteButton.setEnabled(false);
+            shareButton.setEnabled(false);
             return;
         }
 
@@ -139,151 +121,51 @@ public class AudioDetailActivity extends AppCompatActivity {
         speechRatioText.setText(Math.round(sessionItem.getSpeechRatio() * 100.0f) + "%");
         disturbanceText.setText(String.valueOf(sessionItem.getDisturbanceCount()));
         reverbText.setText(sessionItem.getReverbLevel().name());
+        startTimeText.setText(getString(R.string.detail_timeline_start));
+        endTimeText.setText(
+                getString(
+                        R.string.detail_timeline_end,
+                        AudioSessionFormatter.formatClockDuration(sessionItem.getDurationMillis())
+                )
+        );
 
-        progressIndicator.setMax((int) Math.max(1L, sessionItem.getDurationMillis()));
-        progressIndicator.setProgress(0);
-        currentTimeText.setText(AudioSessionFormatter.formatClockDuration(0L));
-        totalTimeText.setText(AudioSessionFormatter.formatClockDuration(sessionItem.getDurationMillis()));
+        if (sessionMetadata == null) {
+            timelineBodyText.setText(R.string.detail_error_body);
+            totalSpeechText.setText(getString(R.string.detail_total_speech_format, getString(R.string.detail_unknown_time)));
+            totalSilenceText.setText(getString(R.string.detail_total_silence_format, getString(R.string.detail_unknown_time)));
+            intervalCountText.setText(getString(R.string.detail_interval_count_format, 0));
+            longestSpeechText.setText(getString(R.string.detail_longest_speech_format, getString(R.string.detail_unknown_time)));
+            bucketChartView.setData(java.util.Collections.emptyList(), 1L);
+            timelineView.setData(java.util.Collections.emptyList(), 1L);
+        } else {
+            timelineBodyText.setText(getString(
+                    R.string.detail_timeline_body_format,
+                    sessionMetadata.getIntervalCount(),
+                    Math.round(sessionMetadata.getSpeakingRatio() * 100.0f)
+            ));
+            totalSpeechText.setText(getString(
+                    R.string.detail_total_speech_format,
+                    AudioSessionFormatter.formatDuration(sessionMetadata.getTotalSpeechMillis())
+            ));
+            totalSilenceText.setText(getString(
+                    R.string.detail_total_silence_format,
+                    AudioSessionFormatter.formatDuration(sessionMetadata.getTotalSilenceMillis())
+            ));
+            intervalCountText.setText(getString(
+                    R.string.detail_interval_count_format,
+                    sessionMetadata.getIntervalCount()
+            ));
+            longestSpeechText.setText(getString(
+                    R.string.detail_longest_speech_format,
+                    AudioSessionFormatter.formatDuration(sessionMetadata.getLongestSpeechMillis())
+            ));
+            timelineView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
+            bucketChartView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
+        }
 
-        playPauseButton.setEnabled(sessionItem.isPlaybackAvailable());
-        playPauseButton.setText(R.string.detail_play);
-        playbackBodyText.setText(sessionItem.isPlaybackAvailable()
-                ? R.string.detail_playback_ready
-                : R.string.detail_playback_unavailable);
-
-        playPauseButton.setOnClickListener(v -> togglePlayback());
         renameButton.setOnClickListener(v -> showRenameDialog());
         deleteButton.setOnClickListener(v -> showDeleteDialog());
-        shareButton.setOnClickListener(v -> shareAudioFile());
-    }
-
-    private void togglePlayback() {
-        if (sessionItem == null || !sessionItem.isPlaybackAvailable()) {
-            return;
-        }
-
-        if (mediaPlayer == null) {
-            prepareMediaPlayer();
-            return;
-        }
-
-        if (!mediaPrepared) {
-            return;
-        }
-
-        if (mediaPlayer.isPlaying()) {
-            mediaPlayer.pause();
-            handler.removeCallbacks(progressUpdater);
-            playPauseButton.setText(R.string.detail_play);
-        } else {
-            startPlayback();
-        }
-    }
-
-    private void prepareMediaPlayer() {
-        File audioFile = AudioLibraryRepository.getInstance().resolveAudioFile(this, sessionItem);
-        Logger.d(
-                TAG,
-                "Preparing playback path="
-                        + audioFile.getAbsolutePath()
-                        + ", exists="
-                        + audioFile.exists()
-                        + ", fileSize="
-                        + audioFile.length()
-        );
-        if (!audioFile.exists()) {
-            playbackBodyText.setText(R.string.detail_error_body);
-            playPauseButton.setEnabled(false);
-            Snackbar.make(findViewById(R.id.detail_root), R.string.detail_playback_failed, Snackbar.LENGTH_SHORT)
-                    .show();
-            return;
-        }
-
-        releaseMediaPlayer();
-        mediaPlayer = new MediaPlayer();
-        mediaPrepared = false;
-        playPauseButton.setEnabled(false);
-        playbackBodyText.setText(R.string.detail_loading_body);
-
-        try {
-            mediaPlayer.setAudioAttributes(
-                    new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build()
-            );
-            mediaPlayer.setVolume(1.0f, 1.0f);
-            mediaPlayer.setDataSource(audioFile.getAbsolutePath());
-            mediaPlayer.setOnPreparedListener(player -> {
-                mediaPrepared = true;
-                playPauseButton.setEnabled(true);
-                playbackBodyText.setText(R.string.detail_playback_ready);
-                Logger.d(
-                        TAG,
-                        "Playback prepared path="
-                                + audioFile.getAbsolutePath()
-                                + ", durationMs="
-                                + player.getDuration()
-                );
-                if (player.getDuration() > 0) {
-                    progressIndicator.setMax(player.getDuration());
-                    totalTimeText.setText(AudioSessionFormatter.formatClockDuration(player.getDuration()));
-                }
-                startPlayback();
-            });
-            mediaPlayer.setOnCompletionListener(player -> {
-                handler.removeCallbacks(progressUpdater);
-                progressIndicator.setProgress(0);
-                currentTimeText.setText(AudioSessionFormatter.formatClockDuration(0L));
-                playPauseButton.setText(R.string.detail_play);
-                player.seekTo(0);
-            });
-            mediaPlayer.setOnErrorListener((player, what, extra) -> {
-                playbackBodyText.setText(R.string.detail_error_body);
-                releaseMediaPlayer();
-                Snackbar.make(
-                        findViewById(R.id.detail_root),
-                        R.string.detail_playback_failed,
-                        Snackbar.LENGTH_SHORT
-                ).show();
-                return true;
-            });
-            mediaPlayer.prepareAsync();
-        } catch (IOException ioException) {
-            playbackBodyText.setText(R.string.detail_error_body);
-            releaseMediaPlayer();
-            Snackbar.make(findViewById(R.id.detail_root), R.string.detail_playback_failed, Snackbar.LENGTH_SHORT)
-                    .show();
-        }
-    }
-
-    private void startPlayback() {
-        if (mediaPlayer == null || !mediaPrepared) {
-            return;
-        }
-        mediaPlayer.start();
-        playPauseButton.setText(R.string.detail_pause);
-        handler.removeCallbacks(progressUpdater);
-        handler.post(progressUpdater);
-    }
-
-    private void renderPlayback() {
-        if (mediaPlayer == null || !mediaPrepared) {
-            return;
-        }
-        int currentPosition = mediaPlayer.getCurrentPosition();
-        progressIndicator.setProgress(currentPosition);
-        currentTimeText.setText(AudioSessionFormatter.formatClockDuration(currentPosition));
-    }
-
-    private void releaseMediaPlayer() {
-        if (mediaPlayer != null) {
-            mediaPlayer.reset();
-            mediaPlayer.release();
-            mediaPlayer = null;
-        }
-        mediaPrepared = false;
-        handler.removeCallbacks(progressUpdater);
+        shareButton.setOnClickListener(v -> shareMetadataFile());
     }
 
     private void showRenameDialog() {
@@ -327,8 +209,8 @@ public class AudioDetailActivity extends AppCompatActivity {
                         return;
                     }
 
-                    releaseMediaPlayer();
                     sessionItem = renamedItem;
+                    sessionMetadata = AudioLibraryRepository.getInstance().getSessionMetadata(this, sessionItem);
                     bindSessionViews();
                 })
                 .show();
@@ -356,33 +238,32 @@ public class AudioDetailActivity extends AppCompatActivity {
                         ).show();
                         return;
                     }
-                    releaseMediaPlayer();
                     setResult(RESULT_OK);
                     finish();
                 })
                 .show();
     }
 
-    private void shareAudioFile() {
+    private void shareMetadataFile() {
         if (sessionItem == null) {
             return;
         }
 
-        File audioFile = AudioLibraryRepository.getInstance().resolveAudioFile(this, sessionItem);
-        if (!audioFile.exists()) {
+        File metadataFile = AudioLibraryRepository.getInstance().resolveMetadataFile(this, sessionItem);
+        if (!metadataFile.exists()) {
             Snackbar.make(findViewById(R.id.detail_root), R.string.detail_share_failed, Snackbar.LENGTH_SHORT)
                     .show();
             return;
         }
 
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
-        shareIntent.setType("audio/wav");
+        shareIntent.setType("application/json");
         shareIntent.putExtra(
                 Intent.EXTRA_STREAM,
                 FileProvider.getUriForFile(
                         this,
                         getPackageName() + ".fileprovider",
-                        audioFile
+                        metadataFile
                 )
         );
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);

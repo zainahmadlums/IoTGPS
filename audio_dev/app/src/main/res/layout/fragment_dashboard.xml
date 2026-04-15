@@ -307,6 +307,8 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
+        <!-- Audio Library preview and quick-link are temporarily disabled. -->
+        <!--
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -361,6 +363,7 @@
             android:layout_marginTop="16dp"
             android:minHeight="56dp"
             android:text="@string/dashboard_quick_link" />
+        -->
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>
