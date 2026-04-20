@@ -3,6 +3,9 @@ package com.example.audio.vad;
 import android.content.Context;
 
 import com.example.audio.audio.AudioConfig;
+import com.example.audio.features.RmsCalculator;
+import com.example.audio.features.SpectralFluxCalculator;
+import com.example.audio.features.ZcrCalculator;
 import com.example.audio.util.Logger;
 import com.konovalov.vad.silero.VadSilero;
 import com.konovalov.vad.silero.config.FrameSize;
@@ -24,7 +27,13 @@ public class SileroSpeechDetector implements SpeechDetector {
     private static final long RESET_RETRY_AFTER_SILENCE_MS = 5000L;
 
     private final Context applicationContext;
-    private VadSilero vadDelegate;
+    private final PocketNoiseReducer pocketNoiseReducer = new PocketNoiseReducer();
+    private final SpeechResilienceTracker speechResilienceTracker = new SpeechResilienceTracker();
+    private final RmsCalculator rmsCalculator = new RmsCalculator();
+    private final SpectralFluxCalculator spectralFluxCalculator = new SpectralFluxCalculator();
+    private final ZcrCalculator zcrCalculator = new ZcrCalculator();
+    private VadSilero rawVadDelegate;
+    private VadSilero conditionedVadDelegate;
     private long lastLogTimestampMillis;
     private long consecutiveSilenceMillis;
     private long silenceSinceLastResetMillis;
@@ -32,7 +41,8 @@ public class SileroSpeechDetector implements SpeechDetector {
 
     public SileroSpeechDetector(Context context) {
         this.applicationContext = context.getApplicationContext();
-        this.vadDelegate = createVadDelegate();
+        this.rawVadDelegate = createVadDelegate();
+        this.conditionedVadDelegate = createVadDelegate();
     }
 
     @Override
@@ -41,18 +51,48 @@ public class SileroSpeechDetector implements SpeechDetector {
             return new VadResult(timestampMillis, false, null);
         }
 
-        boolean isSpeech = vadDelegate.isSpeech(frame);
+        short[] conditionedFrame = pocketNoiseReducer.condition(frame);
+        boolean rawSpeech = rawVadDelegate.isSpeech(frame);
+        boolean conditionedSpeech = conditionedVadDelegate.isSpeech(conditionedFrame);
+        float rawRms = rmsCalculator.extract(frame);
+        float conditionedRms = rmsCalculator.extract(conditionedFrame);
+        float spectralFlux = spectralFluxCalculator.extract(frame);
+        float zcr = zcrCalculator.extract(frame);
+
+        boolean isSpeech = speechResilienceTracker.refine(
+                timestampMillis,
+                rawSpeech,
+                conditionedSpeech,
+                rawRms,
+                conditionedRms,
+                spectralFlux,
+                zcr
+        );
         updateSilenceRecovery(isSpeech);
-        maybeLog(timestampMillis, frame, isSpeech);
-        return new VadResult(timestampMillis, isSpeech, null);
+        maybeLog(
+                timestampMillis,
+                frame,
+                rawSpeech,
+                conditionedSpeech,
+                isSpeech,
+                rawRms,
+                conditionedRms,
+                spectralFlux,
+                zcr
+        );
+        return new VadResult(
+                timestampMillis,
+                isSpeech,
+                confidence(rawSpeech, conditionedSpeech, isSpeech)
+        );
     }
 
     @Override
     public void close() {
-        if (vadDelegate != null) {
-            vadDelegate.close();
-            vadDelegate = null;
-        }
+        closeDelegate(rawVadDelegate);
+        closeDelegate(conditionedVadDelegate);
+        rawVadDelegate = null;
+        conditionedVadDelegate = null;
     }
 
     public static boolean supports(AudioConfig audioConfig) {
@@ -91,13 +131,41 @@ public class SileroSpeechDetector implements SpeechDetector {
         return RESET_RETRY_AFTER_SILENCE_MS;
     }
 
-    private void maybeLog(long timestampMillis, short[] frame, boolean isSpeech) {
+    private void maybeLog(
+            long timestampMillis,
+            short[] frame,
+            boolean rawSpeech,
+            boolean conditionedSpeech,
+            boolean finalSpeech,
+            float rawRms,
+            float conditionedRms,
+            float spectralFlux,
+            float zcr
+    ) {
         if (timestampMillis - lastLogTimestampMillis < 1000L) {
             return;
         }
 
         lastLogTimestampMillis = timestampMillis;
-        Logger.d(TAG, "rms=" + computeRms(frame) + ", isSpeech=" + isSpeech);
+        Logger.d(
+                TAG,
+                "rawRms="
+                        + rawRms
+                        + ", conditionedRms="
+                        + conditionedRms
+                        + ", flux="
+                        + spectralFlux
+                        + ", zcr="
+                        + zcr
+                        + ", rawSpeech="
+                        + rawSpeech
+                        + ", conditionedSpeech="
+                        + conditionedSpeech
+                        + ", finalSpeech="
+                        + finalSpeech
+                        + ", rawIntRms="
+                        + computeRms(frame)
+        );
     }
 
     private int computeRms(short[] frame) {
@@ -122,12 +190,37 @@ public class SileroSpeechDetector implements SpeechDetector {
                 ? RESET_RETRY_AFTER_SILENCE_MS
                 : RESET_AFTER_SILENCE_MS;
         if (silenceSinceLastResetMillis >= resetThresholdMillis) {
-            Logger.d(TAG, "Resetting Silero delegate after extended silence.");
-            VadSilero previousDelegate = vadDelegate;
-            vadDelegate = createVadDelegate();
-            previousDelegate.close();
+            Logger.d(TAG, "Resetting Silero delegates after extended silence.");
+            closeDelegate(rawVadDelegate);
+            closeDelegate(conditionedVadDelegate);
+            rawVadDelegate = createVadDelegate();
+            conditionedVadDelegate = createVadDelegate();
+            pocketNoiseReducer.reset();
+            speechResilienceTracker.reset();
             silenceSinceLastResetMillis = 0L;
             resetDuringCurrentSilence = true;
+        }
+    }
+
+    private Float confidence(boolean rawSpeech, boolean conditionedSpeech, boolean finalSpeech) {
+        if (!finalSpeech) {
+            return 0.0f;
+        }
+        if (rawSpeech && conditionedSpeech) {
+            return 1.0f;
+        }
+        if (conditionedSpeech) {
+            return 0.82f;
+        }
+        if (rawSpeech) {
+            return 0.72f;
+        }
+        return 0.45f;
+    }
+
+    private void closeDelegate(VadSilero delegate) {
+        if (delegate != null) {
+            delegate.close();
         }
     }
 
