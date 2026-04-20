@@ -1,58 +1,244 @@
 package com.example.audio.vad;
 
+import com.example.audio.util.MathUtils;
+
 final class PocketNoiseReducer {
 
-    private static final float HIGH_PASS_ALPHA = 0.985f;
-    private static final float TARGET_RMS = 0.075f;
-    private static final float MIN_RMS_FOR_GAIN = 0.012f;
-    private static final float MAX_GAIN = 6.0f;
-    private static final float GAIN_SMOOTHING_ALPHA = 0.25f;
+    static final class Result {
+        private final short[] conditionedFrame;
+        private final float rawRms;
+        private final float conditionedRms;
+        private final float spectralFlux;
+        private final float zcr;
+        private final float lowBandRatio;
+        private final float highBandRatio;
+        private final float voicingScore;
+        private final float rubbingScore;
+        private final float speechScore;
 
-    private float previousInput;
-    private float previousOutput;
+        Result(
+                short[] conditionedFrame,
+                float rawRms,
+                float conditionedRms,
+                float spectralFlux,
+                float zcr,
+                float lowBandRatio,
+                float highBandRatio,
+                float voicingScore,
+                float rubbingScore,
+                float speechScore
+        ) {
+            this.conditionedFrame = conditionedFrame;
+            this.rawRms = rawRms;
+            this.conditionedRms = conditionedRms;
+            this.spectralFlux = spectralFlux;
+            this.zcr = zcr;
+            this.lowBandRatio = lowBandRatio;
+            this.highBandRatio = highBandRatio;
+            this.voicingScore = voicingScore;
+            this.rubbingScore = rubbingScore;
+            this.speechScore = speechScore;
+        }
+
+        short[] getConditionedFrame() {
+            return conditionedFrame;
+        }
+
+        float getRawRms() {
+            return rawRms;
+        }
+
+        float getConditionedRms() {
+            return conditionedRms;
+        }
+
+        float getSpectralFlux() {
+            return spectralFlux;
+        }
+
+        float getZcr() {
+            return zcr;
+        }
+
+        float getLowBandRatio() {
+            return lowBandRatio;
+        }
+
+        float getHighBandRatio() {
+            return highBandRatio;
+        }
+
+        float getVoicingScore() {
+            return voicingScore;
+        }
+
+        float getRubbingScore() {
+            return rubbingScore;
+        }
+
+        float getSpeechScore() {
+            return speechScore;
+        }
+    }
+
+    private static final float LOW_PASS_SMOOTHING = 0.12f;
+    private static final float TARGET_RMS = 0.070f;
+    private static final float MIN_RMS_FOR_GAIN = 0.010f;
+    private static final float MAX_GAIN = 4.0f;
+    private static final float GAIN_SMOOTHING_ALPHA = 0.18f;
+    private static final float AMBIENT_FLOOR_MIX = 0.18f;
+    private static final float MIN_LOW_BAND_ATTENUATION = 0.18f;
+    private static final float MIN_HIGH_BAND_ATTENUATION = 0.72f;
+    private static final int MIN_PITCH_LAG = 32;
+    private static final int MAX_PITCH_LAG = 160;
+    private static final int LAG_STEP = 4;
+
+    private float lowPassState;
     private float smoothedGain = 1.0f;
 
-    short[] condition(short[] frame) {
+    Result condition(short[] frame, float spectralFlux, float zcr) {
         if (frame == null) {
-            return new short[0];
+            return new Result(new short[0], 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
         }
 
         short[] conditionedFrame = new short[frame.length];
         if (frame.length == 0) {
-            return conditionedFrame;
+            return new Result(conditionedFrame, 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
         }
 
-        float[] highPassed = new float[frame.length];
-        double energy = 0.0d;
+        float[] lowBand = new float[frame.length];
+        float[] highBand = new float[frame.length];
+        double rawEnergy = 0.0d;
+        double lowEnergy = 0.0d;
+        double highEnergy = 0.0d;
         for (int index = 0; index < frame.length; index++) {
             float input = frame[index];
-            float output = input - previousInput + (HIGH_PASS_ALPHA * previousOutput);
-            previousInput = input;
-            previousOutput = output;
-            highPassed[index] = output;
-            energy += output * output;
+            lowPassState += LOW_PASS_SMOOTHING * (input - lowPassState);
+            float lowComponent = lowPassState;
+            float highComponent = input - lowComponent;
+
+            lowBand[index] = lowComponent;
+            highBand[index] = highComponent;
+            rawEnergy += input * input;
+            lowEnergy += lowComponent * lowComponent;
+            highEnergy += highComponent * highComponent;
         }
 
-        float normalizedRms = (float) (Math.sqrt(energy / frame.length) / Short.MAX_VALUE);
-        float desiredGain = TARGET_RMS / Math.max(normalizedRms, MIN_RMS_FOR_GAIN);
-        desiredGain = clamp(desiredGain, 1.0f, MAX_GAIN);
+        float rawRms = (float) (Math.sqrt(rawEnergy / frame.length) / Short.MAX_VALUE);
+        float lowBandRatio = rawEnergy > 0.0d ? (float) (lowEnergy / rawEnergy) : 0.0f;
+        float highBandRatio = rawEnergy > 0.0d ? (float) (highEnergy / rawEnergy) : 0.0f;
+        float voicingScore = estimateVoicing(frame);
+        float fluxScore = MathUtils.clamp(spectralFlux / 0.08f, 0.0f, 1.0f);
+        float zcrScore = MathUtils.clamp(zcr / 0.22f, 0.0f, 1.0f);
+
+        float speechScore = MathUtils.clamp(
+                (0.48f * voicingScore)
+                        + (0.32f * highBandRatio)
+                        + (0.12f * (1.0f - Math.min(1.0f, fluxScore * 0.6f)))
+                        + (0.08f * (1.0f - Math.min(1.0f, zcrScore * 0.5f))),
+                0.0f,
+                1.0f
+        );
+        float rubbingScore = MathUtils.clamp(
+                (0.32f * lowBandRatio)
+                        + (0.26f * fluxScore)
+                        + (0.18f * zcrScore)
+                        + (0.24f * (1.0f - voicingScore)),
+                0.0f,
+                1.0f
+        );
+
+        float lowBandAttenuation = MathUtils.clamp(
+                1.0f - (0.82f * rubbingScore * (1.0f - (0.75f * speechScore))),
+                MIN_LOW_BAND_ATTENUATION,
+                1.0f
+        );
+        float highBandAttenuation = MathUtils.clamp(
+                1.0f - (0.28f * rubbingScore * (1.0f - (0.60f * speechScore))),
+                MIN_HIGH_BAND_ATTENUATION,
+                1.0f
+        );
+
+        double conditionedEnergy = 0.0d;
+        float[] blendedFrame = new float[frame.length];
+        for (int index = 0; index < frame.length; index++) {
+            float suppressed = (lowBand[index] * lowBandAttenuation)
+                    + (highBand[index] * highBandAttenuation);
+            float blended = (AMBIENT_FLOOR_MIX * frame[index])
+                    + ((1.0f - AMBIENT_FLOOR_MIX) * suppressed);
+            blendedFrame[index] = blended;
+            conditionedEnergy += blended * blended;
+        }
+
+        float conditionedRmsBeforeGain =
+                (float) (Math.sqrt(conditionedEnergy / frame.length) / Short.MAX_VALUE);
+        float desiredGain = TARGET_RMS / Math.max(conditionedRmsBeforeGain, MIN_RMS_FOR_GAIN);
+        desiredGain = MathUtils.clamp(desiredGain, 1.0f, MAX_GAIN);
         smoothedGain += GAIN_SMOOTHING_ALPHA * (desiredGain - smoothedGain);
 
-        for (int index = 0; index < highPassed.length; index++) {
-            conditionedFrame[index] = saturate(Math.round(highPassed[index] * smoothedGain));
+        double finalConditionedEnergy = 0.0d;
+        for (int index = 0; index < blendedFrame.length; index++) {
+            short sample = saturate(Math.round(blendedFrame[index] * smoothedGain));
+            conditionedFrame[index] = sample;
+            finalConditionedEnergy += sample * (double) sample;
         }
 
-        return conditionedFrame;
+        float conditionedRms =
+                (float) (Math.sqrt(finalConditionedEnergy / frame.length) / Short.MAX_VALUE);
+        return new Result(
+                conditionedFrame,
+                rawRms,
+                conditionedRms,
+                spectralFlux,
+                zcr,
+                lowBandRatio,
+                highBandRatio,
+                voicingScore,
+                rubbingScore,
+                speechScore
+        );
     }
 
     void reset() {
-        previousInput = 0.0f;
-        previousOutput = 0.0f;
+        lowPassState = 0.0f;
         smoothedGain = 1.0f;
     }
 
-    private float clamp(float value, float minValue, float maxValue) {
-        return Math.max(minValue, Math.min(maxValue, value));
+    private float estimateVoicing(short[] frame) {
+        if (frame.length <= MIN_PITCH_LAG) {
+            return 0.0f;
+        }
+
+        double mean = 0.0d;
+        for (short sample : frame) {
+            mean += sample;
+        }
+        mean /= frame.length;
+
+        double totalEnergy = 0.0d;
+        for (short sample : frame) {
+            double centered = sample - mean;
+            totalEnergy += centered * centered;
+        }
+        if (totalEnergy <= 0.0d) {
+            return 0.0f;
+        }
+
+        double bestCorrelation = 0.0d;
+        int upperLag = Math.min(MAX_PITCH_LAG, frame.length / 2);
+        for (int lag = MIN_PITCH_LAG; lag <= upperLag; lag += LAG_STEP) {
+            double correlation = 0.0d;
+            for (int index = lag; index < frame.length; index++) {
+                double current = frame[index] - mean;
+                double previous = frame[index - lag] - mean;
+                correlation += current * previous;
+            }
+            if (correlation > bestCorrelation) {
+                bestCorrelation = correlation;
+            }
+        }
+
+        return MathUtils.clamp((float) (bestCorrelation / totalEnergy), 0.0f, 1.0f);
     }
 
     private short saturate(int sample) {

@@ -25,6 +25,31 @@ public final class SyntheticAudioFactory {
         return frame;
     }
 
+    public static short[] sineFrame(int size, int amplitude, float frequencyHz) {
+        short[] frame = new short[size];
+        double sampleRateHz = AudioConfig.sileroConfig().getSampleRateHz();
+        for (int index = 0; index < size; index++) {
+            double angle = (2.0d * Math.PI * frequencyHz * index) / sampleRateHz;
+            frame[index] = (short) Math.round(Math.sin(angle) * amplitude);
+        }
+        return frame;
+    }
+
+    public static short[] mixedFrame(short[] primary, short[] secondary) {
+        int size = Math.min(primary.length, secondary.length);
+        short[] frame = new short[size];
+        for (int index = 0; index < size; index++) {
+            int mixed = primary[index] + secondary[index];
+            if (mixed > Short.MAX_VALUE) {
+                mixed = Short.MAX_VALUE;
+            } else if (mixed < Short.MIN_VALUE) {
+                mixed = Short.MIN_VALUE;
+            }
+            frame[index] = (short) mixed;
+        }
+        return frame;
+    }
+
     public static int currentFrameSizeSamples() {
         return AudioConfig.sileroConfig().getFrameSizeSamples();
     }
@@ -39,5 +64,9 @@ public final class SyntheticAudioFactory {
 
     public static short[] currentAlternatingFrame(int amplitude) {
         return alternatingFrame(currentFrameSizeSamples(), amplitude);
+    }
+
+    public static short[] currentSineFrame(int amplitude, float frequencyHz) {
+        return sineFrame(currentFrameSizeSamples(), amplitude, frequencyHz);
     }
 }
