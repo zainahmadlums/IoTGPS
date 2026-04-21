@@ -28,6 +28,26 @@ public class SpeechResilienceTrackerTest {
     }
 
     @Test
+    public void entersSpeechOnModerateRecoveredVoicing() {
+        SpeechResilienceTracker tracker = new SpeechResilienceTracker();
+        PocketNoiseReducer.Result recoveredSpeech = new PocketNoiseReducer.Result(
+                new short[0],
+                0.04f,
+                0.03f,
+                0.05f,
+                0.11f,
+                0.48f,
+                0.52f,
+                0.68f,
+                0.52f,
+                0.56f
+        );
+
+        assertFalse(tracker.refine(0L, false, true, recoveredSpeech).isSpeech());
+        assertTrue(tracker.refine(32L, false, true, recoveredSpeech).isSpeech());
+    }
+
+    @Test
     public void holdsSpeechBrieflyThroughRubbingAfterRecentSpeech() {
         SpeechResilienceTracker tracker = new SpeechResilienceTracker();
         PocketNoiseReducer.Result speechFrame = new PocketNoiseReducer.Result(

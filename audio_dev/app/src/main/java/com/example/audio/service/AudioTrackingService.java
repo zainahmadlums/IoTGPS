@@ -20,10 +20,12 @@ import com.example.audio.audio.AudioConfig;
 import com.example.audio.audio.AudioRecorderManager;
 import com.example.audio.data.SessionArchiveEntry;
 import com.example.audio.data.SessionArchiveStore;
+import com.example.audio.data.SessionAudioFileManager;
 import com.example.audio.data.SessionMetadata;
 import com.example.audio.data.SessionMetadataFileManager;
 import com.example.audio.data.SessionMetadataStore;
 import com.example.audio.data.SessionRepository;
+import com.example.audio.data.WavSessionRecorder;
 import com.example.audio.disturbance.EnergySpikeDetector;
 import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.pipeline.AudioPipelineCoordinator;
@@ -33,6 +35,8 @@ import com.example.audio.reverb.EnergyDecayReverbEstimator;
 import com.example.audio.util.Logger;
 import com.example.audio.vad.SpeechDetectorFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 
 public class AudioTrackingService extends Service {
@@ -48,6 +52,10 @@ public class AudioTrackingService extends Service {
     private AudioPipelineCoordinator audioPipelineCoordinator;
     private SessionRepository sessionRepository;
     private FrameProcessingDiagnostics diagnostics;
+    private WavSessionRecorder rawSessionRecorder;
+    private WavSessionRecorder conditionedSessionRecorder;
+    private String rawAudioFileName;
+    private String conditionedAudioFileName;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean restartInFlight;
     private int debugFrameBridgeLogs;
@@ -140,6 +148,7 @@ public class AudioTrackingService extends Service {
 
         try {
             sessionRepository.startSession();
+            initializeSessionRecorders(audioRecorderManager.getAudioConfig());
             audioRecorderManager.start(new AudioRecorderManager.FrameCallback() {
                 @Override
                 public void onFrame(short[] frame, long timestampMillis) {
@@ -157,6 +166,7 @@ public class AudioTrackingService extends Service {
                     }
                     FrameAnalysisResult analysisResult =
                             audioPipelineCoordinator.process(frame, timestampMillis);
+                    persistFrameAudio(frame, analysisResult);
                     diagnostics.record(analysisResult);
                     sessionRepository.append(analysisResult);
                 }
@@ -168,6 +178,7 @@ public class AudioTrackingService extends Service {
                 }
             });
         } catch (RuntimeException runtimeException) {
+            abortSessionRecorders();
             sessionRepository.stopSession();
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -197,9 +208,11 @@ public class AudioTrackingService extends Service {
         long startTimeMillis = sessionRepository.getSessionStartTimeMillis();
         long endTimeMillis = Math.max(startTimeMillis, sessionRepository.getSessionEndTimeMillis());
         if (startTimeMillis <= 0L || endTimeMillis <= 0L) {
+            abortSessionRecorders();
             return;
         }
 
+        finalizeSessionRecorders();
         SessionSummary sessionSummary = sessionRepository.getSessionSummary();
         String sessionId = "session-" + endTimeMillis;
         String metadataFileName = SessionMetadataFileManager.createOutputFile(this, startTimeMillis).getName();
@@ -213,6 +226,8 @@ public class AudioTrackingService extends Service {
                 sessionId,
                 title,
                 metadataFileName,
+                rawAudioFileName,
+                conditionedAudioFileName,
                 startTimeMillis,
                 endTimeMillis,
                 sessionSummary != null ? sessionSummary.getSpeakingRatio() : 0.0f,
@@ -240,6 +255,8 @@ public class AudioTrackingService extends Service {
                         sessionMetadata.getReverbLevel()
                 )
         );
+        rawAudioFileName = null;
+        conditionedAudioFileName = null;
     }
 
     private void restartTracking(String reason) {
@@ -256,6 +273,83 @@ public class AudioTrackingService extends Service {
         } finally {
             restartInFlight = false;
         }
+    }
+
+    private void initializeSessionRecorders(AudioConfig audioConfig) {
+        abortSessionRecorders();
+        long startTimeMillis = sessionRepository.getSessionStartTimeMillis();
+        if (startTimeMillis <= 0L) {
+            return;
+        }
+
+        try {
+            File rawAudioFile = SessionAudioFileManager.createRawOutputFile(this, startTimeMillis);
+            File conditionedAudioFile = SessionAudioFileManager.createConditionedOutputFile(this, startTimeMillis);
+            rawSessionRecorder = new WavSessionRecorder(rawAudioFile, audioConfig);
+            conditionedSessionRecorder = new WavSessionRecorder(conditionedAudioFile, audioConfig);
+            rawAudioFileName = rawAudioFile.getName();
+            conditionedAudioFileName = conditionedAudioFile.getName();
+        } catch (IOException ioException) {
+            Logger.e(TAG, "Failed to initialize session WAV recorders.", ioException);
+            abortSessionRecorders();
+        }
+    }
+
+    private void persistFrameAudio(short[] rawFrame, FrameAnalysisResult analysisResult) {
+        if (rawSessionRecorder == null || conditionedSessionRecorder == null) {
+            return;
+        }
+
+        short[] conditionedFrame = analysisResult != null
+                && analysisResult.getVadResult() != null
+                ? analysisResult.getVadResult().getConditionedFrame()
+                : null;
+        if (conditionedFrame == null || conditionedFrame.length != rawFrame.length) {
+            conditionedFrame = rawFrame;
+        }
+
+        try {
+            rawSessionRecorder.writeFrame(rawFrame);
+            conditionedSessionRecorder.writeFrame(conditionedFrame);
+        } catch (IOException ioException) {
+            Logger.e(TAG, "Failed to persist session audio frame.", ioException);
+            abortSessionRecorders();
+        }
+    }
+
+    private void finalizeSessionRecorders() {
+        if (rawSessionRecorder != null) {
+            try {
+                rawSessionRecorder.finish();
+            } catch (IOException ioException) {
+                Logger.e(TAG, "Failed to finalize raw session audio.", ioException);
+                rawAudioFileName = null;
+            }
+            rawSessionRecorder = null;
+        }
+
+        if (conditionedSessionRecorder != null) {
+            try {
+                conditionedSessionRecorder.finish();
+            } catch (IOException ioException) {
+                Logger.e(TAG, "Failed to finalize conditioned session audio.", ioException);
+                conditionedAudioFileName = null;
+            }
+            conditionedSessionRecorder = null;
+        }
+    }
+
+    private void abortSessionRecorders() {
+        if (rawSessionRecorder != null) {
+            rawSessionRecorder.abort();
+            rawSessionRecorder = null;
+        }
+        if (conditionedSessionRecorder != null) {
+            conditionedSessionRecorder.abort();
+            conditionedSessionRecorder = null;
+        }
+        rawAudioFileName = null;
+        conditionedAudioFileName = null;
     }
 
     @Override

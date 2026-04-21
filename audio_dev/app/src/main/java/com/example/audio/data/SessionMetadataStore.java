@@ -35,6 +35,8 @@ public final class SessionMetadataStore {
             String sessionId,
             String title,
             String metadataFileName,
+            String rawAudioFileName,
+            String conditionedAudioFileName,
             long startTimeMillis,
             long endTimeMillis,
             float speakingRatio,
@@ -75,7 +77,9 @@ public final class SessionMetadataStore {
                 reverbLevel,
                 intervals.size(),
                 longestSpeechMillis,
-                intervals
+                intervals,
+                rawAudioFileName,
+                conditionedAudioFileName
         );
     }
 
@@ -118,7 +122,9 @@ public final class SessionMetadataStore {
             Context context,
             String currentMetadataFileName,
             String updatedMetadataFileName,
-            String updatedTitle
+            String updatedTitle,
+            String updatedRawAudioFileName,
+            String updatedConditionedAudioFileName
     ) {
         SessionMetadata existingMetadata = readMetadata(context, updatedMetadataFileName);
         if (existingMetadata == null) {
@@ -142,7 +148,9 @@ public final class SessionMetadataStore {
                 existingMetadata.getReverbLevel(),
                 existingMetadata.getIntervalCount(),
                 existingMetadata.getLongestSpeechMillis(),
-                existingMetadata.getSpeechIntervals()
+                existingMetadata.getSpeechIntervals(),
+                updatedRawAudioFileName,
+                updatedConditionedAudioFileName
         );
         writeMetadata(context, renamedMetadata);
         if (!currentMetadataFileName.equals(updatedMetadataFileName)) {

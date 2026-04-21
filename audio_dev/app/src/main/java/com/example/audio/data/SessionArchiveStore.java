@@ -64,12 +64,32 @@ public final class SessionArchiveStore {
             if (!entry.getId().equals(sessionId)) {
                 continue;
             }
+            SessionMetadata sessionMetadata = SessionMetadataStore.getInstance().readMetadata(
+                    context.getApplicationContext(),
+                    entry.getGeneratedFilename()
+            );
             String updatedFileName = SessionMetadataFileManager.renameMetadataFile(
                     context.getApplicationContext(),
                     entry.getGeneratedFilename(),
                     updatedTitle,
                     entry.getStartTimeMillis()
             );
+            String updatedRawAudioFileName = sessionMetadata != null
+                    ? SessionAudioFileManager.renameAudioFile(
+                            context.getApplicationContext(),
+                            sessionMetadata.getRawAudioFileName(),
+                            updatedTitle,
+                            entry.getStartTimeMillis()
+                    )
+                    : null;
+            String updatedConditionedAudioFileName = sessionMetadata != null
+                    ? SessionAudioFileManager.renameAudioFile(
+                            context.getApplicationContext(),
+                            sessionMetadata.getConditionedAudioFileName(),
+                            updatedTitle,
+                            entry.getStartTimeMillis()
+                    )
+                    : null;
             long updatedFileSizeBytes = SessionMetadataFileManager.resolveMetadataFile(
                     context.getApplicationContext(),
                     updatedFileName
@@ -86,7 +106,9 @@ public final class SessionArchiveStore {
                     context.getApplicationContext(),
                     entry.getGeneratedFilename(),
                     updatedFileName,
-                    updatedTitle
+                    updatedTitle,
+                    updatedRawAudioFileName,
+                    updatedConditionedAudioFileName
             );
             return renamedEntry;
         }
@@ -99,10 +121,24 @@ public final class SessionArchiveStore {
             if (!entries.get(index).getId().equals(sessionId)) {
                 continue;
             }
+            SessionMetadata sessionMetadata = SessionMetadataStore.getInstance().readMetadata(
+                    context.getApplicationContext(),
+                    entries.get(index).getGeneratedFilename()
+            );
             SessionMetadataFileManager.deleteMetadataFile(
                     context.getApplicationContext(),
                     entries.get(index).getGeneratedFilename()
             );
+            if (sessionMetadata != null) {
+                SessionAudioFileManager.deleteAudioFile(
+                        context.getApplicationContext(),
+                        sessionMetadata.getRawAudioFileName()
+                );
+                SessionAudioFileManager.deleteAudioFile(
+                        context.getApplicationContext(),
+                        sessionMetadata.getConditionedAudioFileName()
+                );
+            }
             entries.remove(index);
             writeEntries(context.getApplicationContext(), entries);
             return true;
@@ -113,6 +149,7 @@ public final class SessionArchiveStore {
     public synchronized boolean deleteAllSessions(Context context) {
         Context appContext = context.getApplicationContext();
         boolean allDeleted = SessionMetadataFileManager.deleteAllMetadataFiles(appContext);
+        allDeleted = SessionAudioFileManager.deleteAllAudioFiles(appContext) && allDeleted;
         writeEntries(appContext, new ArrayList<>());
         return allDeleted;
     }

@@ -25,8 +25,8 @@ final class SpeechResilienceTracker {
     private static final long RUBBING_HOLD_MS = 480L;
     private static final int ENTRY_FRAME_REQUIREMENT = 2;
     private static final int EXIT_FRAME_REQUIREMENT = 3;
-    private static final float ENTRY_THRESHOLD = 0.66f;
-    private static final float HOLD_THRESHOLD = 0.43f;
+    private static final float ENTRY_THRESHOLD = 0.64f;
+    private static final float HOLD_THRESHOLD = 0.41f;
     private static final float EXIT_THRESHOLD = 0.28f;
     private static final float RUBBING_HOLD_THRESHOLD = 0.55f;
 
@@ -65,6 +65,7 @@ final class SpeechResilienceTracker {
             score -= 0.14f * rubbingScore;
         } else if (!rawSpeech && conditionedSpeech) {
             score += (0.22f * speechScore) + (0.10f * rubbingScore);
+            score += 0.12f * reductionResult.getVoicingScore();
         }
 
         if (reductionResult.getConditionedRms() > reductionResult.getRawRms()) {
@@ -73,6 +74,13 @@ final class SpeechResilienceTracker {
 
         float fusedScore = MathUtils.clamp(score / totalWeight, 0.0f, 1.0f);
         float speechThreshold = speechActive ? HOLD_THRESHOLD : ENTRY_THRESHOLD;
+        if (conditionedSpeech && speechScore >= 0.52f) {
+            speechThreshold -= 0.05f;
+        }
+        if (conditionedSpeech && reductionResult.getVoicingScore() >= 0.60f) {
+            speechThreshold -= 0.03f;
+        }
+        speechThreshold = Math.max(EXIT_THRESHOLD + 0.08f, speechThreshold);
         boolean speechLean = fusedScore >= speechThreshold;
         boolean silenceLean = fusedScore <= EXIT_THRESHOLD;
 

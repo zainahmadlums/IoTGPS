@@ -86,7 +86,9 @@ final class PocketNoiseReducer {
     private static final float MIN_RMS_FOR_GAIN = 0.010f;
     private static final float MAX_GAIN = 4.0f;
     private static final float GAIN_SMOOTHING_ALPHA = 0.18f;
-    private static final float AMBIENT_FLOOR_MIX = 0.18f;
+    private static final float BASE_AMBIENT_FLOOR_MIX = 0.12f;
+    private static final float MIN_AMBIENT_FLOOR_MIX = 0.04f;
+    private static final float MAX_AMBIENT_FLOOR_MIX = 0.24f;
     private static final float MIN_LOW_BAND_ATTENUATION = 0.18f;
     private static final float MIN_HIGH_BAND_ATTENUATION = 0.72f;
     private static final int MIN_PITCH_LAG = 32;
@@ -148,15 +150,29 @@ final class PocketNoiseReducer {
                 1.0f
         );
 
+        float speechProtection = MathUtils.clamp(
+                (0.62f * speechScore)
+                        + (0.24f * voicingScore)
+                        + (0.14f * highBandRatio),
+                0.0f,
+                1.0f
+        );
         float lowBandAttenuation = MathUtils.clamp(
-                1.0f - (0.82f * rubbingScore * (1.0f - (0.75f * speechScore))),
+                1.0f - (0.88f * rubbingScore * (1.0f - (0.82f * speechProtection))),
                 MIN_LOW_BAND_ATTENUATION,
                 1.0f
         );
         float highBandAttenuation = MathUtils.clamp(
-                1.0f - (0.28f * rubbingScore * (1.0f - (0.60f * speechScore))),
+                1.0f - (0.20f * rubbingScore * (1.0f - (0.72f * speechProtection))),
                 MIN_HIGH_BAND_ATTENUATION,
                 1.0f
+        );
+        float ambientFloorMix = MathUtils.clamp(
+                BASE_AMBIENT_FLOOR_MIX
+                        + (0.14f * speechProtection)
+                        - (0.16f * rubbingScore),
+                MIN_AMBIENT_FLOOR_MIX,
+                MAX_AMBIENT_FLOOR_MIX
         );
 
         double conditionedEnergy = 0.0d;
@@ -164,8 +180,8 @@ final class PocketNoiseReducer {
         for (int index = 0; index < frame.length; index++) {
             float suppressed = (lowBand[index] * lowBandAttenuation)
                     + (highBand[index] * highBandAttenuation);
-            float blended = (AMBIENT_FLOOR_MIX * frame[index])
-                    + ((1.0f - AMBIENT_FLOOR_MIX) * suppressed);
+            float blended = (ambientFloorMix * frame[index])
+                    + ((1.0f - ambientFloorMix) * suppressed);
             blendedFrame[index] = blended;
             conditionedEnergy += blended * blended;
         }

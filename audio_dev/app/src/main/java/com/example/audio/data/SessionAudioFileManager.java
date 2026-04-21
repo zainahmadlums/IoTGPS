@@ -11,6 +11,8 @@ public final class SessionAudioFileManager {
 
     private static final String TAG = "SessionAudioFileManager";
     private static final String AUDIO_DIRECTORY = "archived_audio";
+    private static final String VARIANT_RAW = "raw";
+    private static final String VARIANT_FILTERED = "filtered";
 
     private SessionAudioFileManager() {
     }
@@ -23,24 +25,32 @@ public final class SessionAudioFileManager {
         return directory;
     }
 
-    public static File createOutputFile(Context context, long startTimeMillis) {
-        return new File(getAudioDirectory(context), buildDefaultFileName(startTimeMillis));
+    public static File createRawOutputFile(Context context, long startTimeMillis) {
+        return new File(getAudioDirectory(context), buildDefaultFileName(startTimeMillis, VARIANT_RAW));
+    }
+
+    public static File createConditionedOutputFile(Context context, long startTimeMillis) {
+        return new File(getAudioDirectory(context), buildDefaultFileName(startTimeMillis, VARIANT_FILTERED));
     }
 
     public static File resolveAudioFile(Context context, String generatedFilename) {
         return new File(getAudioDirectory(context), generatedFilename);
     }
 
-    public static String buildRenamedFileName(String title, long startTimeMillis) {
+    public static String buildRenamedFileName(String title, long startTimeMillis, String variant) {
         return String.format(
                 Locale.US,
-                "%s_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
+                "%2$s_%3$s_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
                 startTimeMillis,
-                sanitizeForFileName(title)
+                sanitizeForFileName(title),
+                variant
         );
     }
 
     public static boolean deleteAudioFile(Context context, String generatedFilename) {
+        if (generatedFilename == null || generatedFilename.trim().isEmpty()) {
+            return true;
+        }
         File audioFile = resolveAudioFile(context, generatedFilename);
         return !audioFile.exists() || audioFile.delete();
     }
@@ -68,12 +78,19 @@ public final class SessionAudioFileManager {
             String updatedTitle,
             long startTimeMillis
     ) {
+        if (currentGeneratedFilename == null || currentGeneratedFilename.trim().isEmpty()) {
+            return null;
+        }
         File currentFile = resolveAudioFile(context, currentGeneratedFilename);
         if (!currentFile.exists()) {
             return currentGeneratedFilename;
         }
 
-        String updatedFileName = buildRenamedFileName(updatedTitle, startTimeMillis);
+        String updatedFileName = buildRenamedFileName(
+                updatedTitle,
+                startTimeMillis,
+                detectVariant(currentGeneratedFilename)
+        );
         File updatedFile = resolveAudioFile(context, updatedFileName);
         if (updatedFile.exists()) {
             updatedFileName = System.currentTimeMillis() + "_" + updatedFileName;
@@ -87,12 +104,20 @@ public final class SessionAudioFileManager {
         return updatedFileName;
     }
 
-    private static String buildDefaultFileName(long startTimeMillis) {
+    private static String buildDefaultFileName(long startTimeMillis, String variant) {
         return String.format(
                 Locale.US,
-                "deployteach_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
-                startTimeMillis
+                "deployteach_%2$s_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
+                startTimeMillis,
+                variant
         );
+    }
+
+    private static String detectVariant(String fileName) {
+        if (fileName != null && fileName.contains("_" + VARIANT_FILTERED + "_")) {
+            return VARIANT_FILTERED;
+        }
+        return VARIANT_RAW;
     }
 
     private static String sanitizeForFileName(String value) {

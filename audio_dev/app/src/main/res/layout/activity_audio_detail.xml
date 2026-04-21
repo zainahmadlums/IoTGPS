@@ -387,6 +387,42 @@
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detail_play_raw_button"
+                        style="@style/Widget.DeployTeach.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="52dp"
+                        android:text="@string/detail_play_raw" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detail_play_filtered_button"
+                        style="@style/Widget.DeployTeach.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:minHeight="52dp"
+                        android:text="@string/detail_play_filtered" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detail_stop_playback_button"
+                        style="@style/Widget.DeployTeach.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:minHeight="52dp"
+                        android:text="@string/detail_stop_playback" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/detail_rename_button"
                         style="@style/Widget.DeployTeach.Button.Secondary"
                         android:layout_width="0dp"
@@ -417,6 +453,7 @@
                 </LinearLayout>
 
                 <TextView
+                    android:id="@+id/detail_action_hint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"

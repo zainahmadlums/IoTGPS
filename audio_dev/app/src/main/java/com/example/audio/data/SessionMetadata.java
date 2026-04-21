@@ -26,6 +26,8 @@ public final class SessionMetadata {
     private static final String KEY_INTERVAL_COUNT = "intervalCount";
     private static final String KEY_LONGEST_SPEECH_MILLIS = "longestSpeechMillis";
     private static final String KEY_SPEECH_INTERVALS = "speechIntervals";
+    private static final String KEY_RAW_AUDIO_FILE_NAME = "rawAudioFileName";
+    private static final String KEY_CONDITIONED_AUDIO_FILE_NAME = "conditionedAudioFileName";
 
     private final String sessionId;
     private final String title;
@@ -41,6 +43,8 @@ public final class SessionMetadata {
     private final int intervalCount;
     private final long longestSpeechMillis;
     private final List<SessionSpeechInterval> speechIntervals;
+    private final String rawAudioFileName;
+    private final String conditionedAudioFileName;
 
     public SessionMetadata(
             String sessionId,
@@ -56,7 +60,9 @@ public final class SessionMetadata {
             ReverbResult.Level reverbLevel,
             int intervalCount,
             long longestSpeechMillis,
-            List<SessionSpeechInterval> speechIntervals
+            List<SessionSpeechInterval> speechIntervals,
+            String rawAudioFileName,
+            String conditionedAudioFileName
     ) {
         this.sessionId = sessionId;
         this.title = title;
@@ -72,6 +78,8 @@ public final class SessionMetadata {
         this.intervalCount = intervalCount;
         this.longestSpeechMillis = longestSpeechMillis;
         this.speechIntervals = Collections.unmodifiableList(new ArrayList<>(speechIntervals));
+        this.rawAudioFileName = rawAudioFileName;
+        this.conditionedAudioFileName = conditionedAudioFileName;
     }
 
     public String getSessionId() {
@@ -130,6 +138,14 @@ public final class SessionMetadata {
         return speechIntervals;
     }
 
+    public String getRawAudioFileName() {
+        return rawAudioFileName;
+    }
+
+    public String getConditionedAudioFileName() {
+        return conditionedAudioFileName;
+    }
+
     public JSONObject toJson() throws JSONException {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(KEY_SESSION_ID, sessionId);
@@ -151,6 +167,8 @@ public final class SessionMetadata {
             intervalsJson.put(speechInterval.toJson());
         }
         jsonObject.put(KEY_SPEECH_INTERVALS, intervalsJson);
+        jsonObject.put(KEY_RAW_AUDIO_FILE_NAME, rawAudioFileName);
+        jsonObject.put(KEY_CONDITIONED_AUDIO_FILE_NAME, conditionedAudioFileName);
         return jsonObject;
     }
 
@@ -182,7 +200,9 @@ public final class SessionMetadata {
                 ),
                 jsonObject.optInt(KEY_INTERVAL_COUNT, speechIntervals.size()),
                 jsonObject.optLong(KEY_LONGEST_SPEECH_MILLIS, 0L),
-                speechIntervals
+                speechIntervals,
+                jsonObject.optString(KEY_RAW_AUDIO_FILE_NAME, null),
+                jsonObject.optString(KEY_CONDITIONED_AUDIO_FILE_NAME, null)
         );
     }
 }

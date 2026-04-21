@@ -84,6 +84,11 @@
     <string name="detail_share">Share</string>
     <string name="detail_play">Play</string>
     <string name="detail_pause">Pause</string>
+    <string name="detail_play_raw">Play Raw</string>
+    <string name="detail_pause_raw">Pause Raw</string>
+    <string name="detail_play_filtered">Play Filtered</string>
+    <string name="detail_pause_filtered">Pause Filtered</string>
+    <string name="detail_stop_playback">Stop</string>
     <string name="detail_timeline_badge">Session activity</string>
     <string name="detail_error_body">This session metadata file could not be loaded.</string>
     <string name="detail_share_placeholder">Export/share placeholder</string>
@@ -92,7 +97,8 @@
     <string name="detail_unknown_time">Unknown</string>
     <string name="detail_seek_content_description">Playback timeline</string>
     <string name="detail_session_badge">Archived session</string>
-    <string name="detail_action_hint">Rename, delete, or share the stored metadata file from this session.</string>
+    <string name="detail_action_hint">Play the raw and filtered captures to inspect pocket-noise suppression, then rename, delete, or share the stored metadata.</string>
+    <string name="detail_action_hint_playback_unavailable">Playback is only available for sessions recorded after raw and filtered WAV export was added.</string>
     <string name="detail_rename_dialog_title">Rename session</string>
     <string name="detail_rename_empty">Session title cannot be empty</string>
     <string name="detail_delete_confirm_title">Delete session?</string>
@@ -100,6 +106,8 @@
     <string name="detail_action_failed">Action could not be completed</string>
     <string name="detail_share_chooser">Share session summary</string>
     <string name="detail_share_failed">Metadata file could not be shared</string>
+    <string name="detail_playback_failed">Audio file could not be played</string>
+    <string name="detail_playback_missing">This session does not have saved playback audio yet</string>
     <string name="detail_share_audio_chooser">Share metadata file</string>
     <string name="detail_timeline_start">0:00 start</string>
     <string name="detail_timeline_end">%1$s end</string>

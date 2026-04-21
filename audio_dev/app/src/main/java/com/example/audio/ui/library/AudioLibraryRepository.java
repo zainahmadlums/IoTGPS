@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.example.audio.data.SessionArchiveEntry;
 import com.example.audio.data.SessionArchiveStore;
+import com.example.audio.data.SessionAudioFileManager;
 import com.example.audio.data.SessionMetadata;
 import com.example.audio.data.SessionMetadataFileManager;
 import com.example.audio.data.SessionMetadataStore;
@@ -60,22 +61,36 @@ public final class AudioLibraryRepository {
     public File resolveMetadataFile(Context context, AudioSessionItem item) {
         return SessionMetadataFileManager.resolveMetadataFile(
                 context.getApplicationContext(),
-                item.getAudioFileName()
+                item.getGeneratedFilename()
         );
     }
 
     public SessionMetadata getSessionMetadata(Context context, AudioSessionItem item) {
         return SessionMetadataStore.getInstance().readMetadata(
                 context.getApplicationContext(),
-                item.getAudioFileName()
+                item.getGeneratedFilename()
         );
     }
 
     private AudioSessionItem toAudioSessionItem(Context context, SessionArchiveEntry entry) {
+        Context appContext = context.getApplicationContext();
         File metadataFile = SessionMetadataFileManager.resolveMetadataFile(
-                context.getApplicationContext(),
+                appContext,
                 entry.getGeneratedFilename()
         );
+        SessionMetadata sessionMetadata = SessionMetadataStore.getInstance().readMetadata(
+                appContext,
+                entry.getGeneratedFilename()
+        );
+        String preferredAudioFileName = sessionMetadata != null
+                ? firstNonEmpty(
+                        sessionMetadata.getConditionedAudioFileName(),
+                        sessionMetadata.getRawAudioFileName()
+                )
+                : null;
+        boolean playbackAvailable = sessionMetadata != null
+                && hasPlaybackFile(appContext, sessionMetadata.getRawAudioFileName())
+                && hasPlaybackFile(appContext, sessionMetadata.getConditionedAudioFileName());
         return new AudioSessionItem(
                 entry.getId(),
                 entry.getTitle(),
@@ -87,9 +102,25 @@ public final class AudioLibraryRepository {
                 entry.getSpeechRatio(),
                 entry.getDisturbanceCount(),
                 entry.getReverbLevel(),
-                entry.getGeneratedFilename(),
-                false,
+                preferredAudioFileName,
+                playbackAvailable,
                 false
         );
+    }
+
+    private boolean hasPlaybackFile(Context context, String fileName) {
+        return fileName != null
+                && !fileName.trim().isEmpty()
+                && SessionAudioFileManager.resolveAudioFile(context, fileName).exists();
+    }
+
+    private String firstNonEmpty(String primary, String secondary) {
+        if (primary != null && !primary.trim().isEmpty()) {
+            return primary;
+        }
+        if (secondary != null && !secondary.trim().isEmpty()) {
+            return secondary;
+        }
+        return null;
     }
 }

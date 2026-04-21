@@ -2,6 +2,7 @@ package com.example.audio.ui.detail;
 
 import android.content.Context;
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.text.InputType;
 import android.widget.EditText;
@@ -15,6 +16,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.audio.R;
+import com.example.audio.data.SessionAudioFileManager;
 import com.example.audio.data.SessionMetadata;
 import com.example.audio.ui.library.AudioLibraryRepository;
 import com.example.audio.ui.library.AudioSessionFormatter;
@@ -32,6 +34,8 @@ public class AudioDetailActivity extends AppCompatActivity {
 
     private AudioSessionItem sessionItem;
     private SessionMetadata sessionMetadata;
+    private MediaPlayer mediaPlayer;
+    private String activePlaybackFileName;
 
     public static Intent createIntent(Context context, AudioSessionItem item) {
         Intent intent = new Intent(context, AudioDetailActivity.class);
@@ -62,6 +66,12 @@ public class AudioDetailActivity extends AppCompatActivity {
         bindSessionViews();
     }
 
+    @Override
+    protected void onDestroy() {
+        stopPlayback();
+        super.onDestroy();
+    }
+
     private void bindSessionViews() {
         TextView titleText = findViewById(R.id.detail_title);
         TextView badgeText = findViewById(R.id.detail_badge);
@@ -80,9 +90,13 @@ public class AudioDetailActivity extends AppCompatActivity {
         TextView longestSpeechText = findViewById(R.id.detail_longest_speech_value);
         SpeechTimelineView timelineView = findViewById(R.id.detail_timeline_graph);
         SpeechBucketChartView bucketChartView = findViewById(R.id.detail_bucket_chart);
+        MaterialButton playRawButton = findViewById(R.id.detail_play_raw_button);
+        MaterialButton playFilteredButton = findViewById(R.id.detail_play_filtered_button);
+        MaterialButton stopPlaybackButton = findViewById(R.id.detail_stop_playback_button);
         MaterialButton renameButton = findViewById(R.id.detail_rename_button);
         MaterialButton deleteButton = findViewById(R.id.detail_delete_button);
         MaterialButton shareButton = findViewById(R.id.detail_share_button);
+        TextView actionHintText = findViewById(R.id.detail_action_hint);
 
         if (sessionItem == null) {
             titleText.setText(R.string.detail_title_fallback);
@@ -100,9 +114,13 @@ public class AudioDetailActivity extends AppCompatActivity {
             totalSilenceText.setText(getString(R.string.detail_total_silence_format, getString(R.string.detail_unknown_time)));
             intervalCountText.setText(getString(R.string.detail_interval_count_format, 0));
             longestSpeechText.setText(getString(R.string.detail_longest_speech_format, getString(R.string.detail_unknown_time)));
+            playRawButton.setEnabled(false);
+            playFilteredButton.setEnabled(false);
+            stopPlaybackButton.setEnabled(false);
             renameButton.setEnabled(false);
             deleteButton.setEnabled(false);
             shareButton.setEnabled(false);
+            actionHintText.setText(R.string.detail_action_hint_playback_unavailable);
             return;
         }
 
@@ -137,6 +155,7 @@ public class AudioDetailActivity extends AppCompatActivity {
             longestSpeechText.setText(getString(R.string.detail_longest_speech_format, getString(R.string.detail_unknown_time)));
             bucketChartView.setData(java.util.Collections.emptyList(), 1L);
             timelineView.setData(java.util.Collections.emptyList(), 1L);
+            actionHintText.setText(R.string.detail_action_hint_playback_unavailable);
         } else {
             timelineBodyText.setText(getString(
                     R.string.detail_timeline_body_format,
@@ -161,11 +180,20 @@ public class AudioDetailActivity extends AppCompatActivity {
             ));
             timelineView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
             bucketChartView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
+            actionHintText.setText(
+                    hasPlaybackAudio()
+                            ? R.string.detail_action_hint
+                            : R.string.detail_action_hint_playback_unavailable
+            );
         }
 
+        playRawButton.setOnClickListener(v -> togglePlayback(resolveRawAudioFile()));
+        playFilteredButton.setOnClickListener(v -> togglePlayback(resolveConditionedAudioFile()));
+        stopPlaybackButton.setOnClickListener(v -> stopPlayback());
         renameButton.setOnClickListener(v -> showRenameDialog());
         deleteButton.setOnClickListener(v -> showDeleteDialog());
         shareButton.setOnClickListener(v -> shareMetadataFile());
+        updatePlaybackButtons();
     }
 
     private void showRenameDialog() {
@@ -195,6 +223,7 @@ public class AudioDetailActivity extends AppCompatActivity {
                         return;
                     }
 
+                    stopPlayback();
                     AudioSessionItem renamedItem = AudioLibraryRepository.getInstance().renameSession(
                             this,
                             sessionItem.getId(),
@@ -226,6 +255,7 @@ public class AudioDetailActivity extends AppCompatActivity {
                 .setMessage(R.string.detail_delete_confirm_body)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.detail_delete, (dialog, which) -> {
+                    stopPlayback();
                     boolean deleted = AudioLibraryRepository.getInstance().deleteSession(
                             this,
                             sessionItem.getId()
@@ -268,5 +298,97 @@ public class AudioDetailActivity extends AppCompatActivity {
         );
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         startActivity(Intent.createChooser(shareIntent, getString(R.string.detail_share_audio_chooser)));
+    }
+
+    private void togglePlayback(File audioFile) {
+        if (audioFile == null || !audioFile.exists()) {
+            Snackbar.make(findViewById(R.id.detail_root), R.string.detail_playback_missing, Snackbar.LENGTH_SHORT)
+                    .show();
+            return;
+        }
+
+        if (audioFile.getName().equals(activePlaybackFileName)) {
+            stopPlayback();
+            return;
+        }
+
+        stopPlayback();
+        try {
+            MediaPlayer player = new MediaPlayer();
+            player.setDataSource(audioFile.getAbsolutePath());
+            player.setOnCompletionListener(completedPlayer -> stopPlayback());
+            player.prepare();
+            player.start();
+            mediaPlayer = player;
+            activePlaybackFileName = audioFile.getName();
+            updatePlaybackButtons();
+        } catch (Exception exception) {
+            stopPlayback();
+            Snackbar.make(findViewById(R.id.detail_root), R.string.detail_playback_failed, Snackbar.LENGTH_SHORT)
+                    .show();
+        }
+    }
+
+    private void stopPlayback() {
+        if (mediaPlayer != null) {
+            try {
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                }
+            } catch (IllegalStateException ignored) {
+            }
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+        activePlaybackFileName = null;
+        updatePlaybackButtons();
+    }
+
+    private void updatePlaybackButtons() {
+        MaterialButton playRawButton = findViewById(R.id.detail_play_raw_button);
+        MaterialButton playFilteredButton = findViewById(R.id.detail_play_filtered_button);
+        MaterialButton stopPlaybackButton = findViewById(R.id.detail_stop_playback_button);
+
+        File rawAudioFile = resolveRawAudioFile();
+        File conditionedAudioFile = resolveConditionedAudioFile();
+        boolean rawAvailable = rawAudioFile != null && rawAudioFile.exists();
+        boolean conditionedAvailable = conditionedAudioFile != null && conditionedAudioFile.exists();
+
+        playRawButton.setEnabled(rawAvailable);
+        playFilteredButton.setEnabled(conditionedAvailable);
+        stopPlaybackButton.setEnabled(mediaPlayer != null);
+        playRawButton.setText(
+                rawAvailable && rawAudioFile.getName().equals(activePlaybackFileName)
+                        ? R.string.detail_pause_raw
+                        : R.string.detail_play_raw
+        );
+        playFilteredButton.setText(
+                conditionedAvailable && conditionedAudioFile.getName().equals(activePlaybackFileName)
+                        ? R.string.detail_pause_filtered
+                        : R.string.detail_play_filtered
+        );
+    }
+
+    private boolean hasPlaybackAudio() {
+        File rawAudioFile = resolveRawAudioFile();
+        File conditionedAudioFile = resolveConditionedAudioFile();
+        return rawAudioFile != null
+                && rawAudioFile.exists()
+                && conditionedAudioFile != null
+                && conditionedAudioFile.exists();
+    }
+
+    private File resolveRawAudioFile() {
+        if (sessionMetadata == null || sessionMetadata.getRawAudioFileName() == null) {
+            return null;
+        }
+        return SessionAudioFileManager.resolveAudioFile(this, sessionMetadata.getRawAudioFileName());
+    }
+
+    private File resolveConditionedAudioFile() {
+        if (sessionMetadata == null || sessionMetadata.getConditionedAudioFileName() == null) {
+            return null;
+        }
+        return SessionAudioFileManager.resolveAudioFile(this, sessionMetadata.getConditionedAudioFileName());
     }
 }
