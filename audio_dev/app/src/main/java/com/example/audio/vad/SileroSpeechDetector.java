@@ -46,7 +46,7 @@ public class SileroSpeechDetector implements SpeechDetector {
     @Override
     public VadResult analyze(short[] frame, long timestampMillis) {
         if (frame == null || frame.length != CONFIGURED_FRAME_SIZE_SAMPLES) {
-            return new VadResult(timestampMillis, false, null, null);
+            return new VadResult(timestampMillis, false, null, null, null);
         }
 
         float spectralFlux = spectralFluxCalculator.extract(frame);
@@ -72,7 +72,13 @@ public class SileroSpeechDetector implements SpeechDetector {
                 decision,
                 reductionResult
         );
-        return new VadResult(timestampMillis, isSpeech, decision.getConfidence(), conditionedFrame);
+        return new VadResult(
+                timestampMillis,
+                isSpeech,
+                decision.getConfidence(),
+                conditionedFrame,
+                reductionResult.getPlaybackFrame()
+        );
     }
 
     @Override

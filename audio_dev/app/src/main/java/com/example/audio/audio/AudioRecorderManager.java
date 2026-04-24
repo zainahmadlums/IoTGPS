@@ -18,7 +18,10 @@ public class AudioRecorderManager {
     private static final int MAX_CONSECUTIVE_READ_ERRORS = 8;
     private static final long READ_ERROR_BACKOFF_MILLIS = 50L;
     private static final long ZERO_FRAME_RECOVERY_MILLIS = 2000L;
-    private static final int PRIMARY_AUDIO_SOURCE = MediaRecorder.AudioSource.VOICE_RECOGNITION;
+    private static final int[] AUDIO_SOURCE_PRIORITY = new int[] {
+            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION
+    };
     private static final int MAX_ZERO_ROUTE_RECOVERIES = 3;
     private static final int DEBUG_READ_LOG_LIMIT = 6;
     private static final int DEBUG_FRAME_LOG_LIMIT = 6;
@@ -111,7 +114,13 @@ public class AudioRecorderManager {
         int frameBytes = audioConfig.getFrameSizeBytes();
         bufferSizeBytes = Math.max(minimumBuffer, frameBytes * 4);
 
-        AudioRecord createdRecord = buildAudioRecord(PRIMARY_AUDIO_SOURCE);
+        AudioRecord createdRecord = null;
+        for (int audioSource : AUDIO_SOURCE_PRIORITY) {
+            createdRecord = buildAudioRecord(audioSource);
+            if (createdRecord != null) {
+                break;
+            }
+        }
         if (createdRecord == null) {
             throw new IllegalStateException("AudioRecord failed to initialize.");
         }

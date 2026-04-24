@@ -6,6 +6,7 @@ final class PocketNoiseReducer {
 
     static final class Result {
         private final short[] conditionedFrame;
+        private final short[] playbackFrame;
         private final float rawRms;
         private final float conditionedRms;
         private final float spectralFlux;
@@ -18,6 +19,7 @@ final class PocketNoiseReducer {
 
         Result(
                 short[] conditionedFrame,
+                short[] playbackFrame,
                 float rawRms,
                 float conditionedRms,
                 float spectralFlux,
@@ -29,6 +31,7 @@ final class PocketNoiseReducer {
                 float speechScore
         ) {
             this.conditionedFrame = conditionedFrame;
+            this.playbackFrame = playbackFrame;
             this.rawRms = rawRms;
             this.conditionedRms = conditionedRms;
             this.spectralFlux = spectralFlux;
@@ -42,6 +45,10 @@ final class PocketNoiseReducer {
 
         short[] getConditionedFrame() {
             return conditionedFrame;
+        }
+
+        short[] getPlaybackFrame() {
+            return playbackFrame;
         }
 
         float getRawRms() {
@@ -100,12 +107,13 @@ final class PocketNoiseReducer {
 
     Result condition(short[] frame, float spectralFlux, float zcr) {
         if (frame == null) {
-            return new Result(new short[0], 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            return new Result(new short[0], new short[0], 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
         }
 
         short[] conditionedFrame = new short[frame.length];
+        short[] playbackFrame = new short[frame.length];
         if (frame.length == 0) {
-            return new Result(conditionedFrame, 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            return new Result(conditionedFrame, playbackFrame, 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
         }
 
         float[] lowBand = new float[frame.length];
@@ -174,6 +182,21 @@ final class PocketNoiseReducer {
                 MIN_AMBIENT_FLOOR_MIX,
                 MAX_AMBIENT_FLOOR_MIX
         );
+        float playbackLowBandAttenuation = MathUtils.clamp(
+                1.0f - (0.40f * rubbingScore * (1.0f - (0.55f * speechProtection))),
+                0.60f,
+                1.0f
+        );
+        float playbackHighBandAttenuation = MathUtils.clamp(
+                1.0f - (0.08f * rubbingScore * (1.0f - (0.65f * speechProtection))),
+                0.92f,
+                1.0f
+        );
+        float playbackAmbientMix = MathUtils.clamp(
+                0.72f - (0.26f * rubbingScore) + (0.14f * speechProtection),
+                0.52f,
+                0.88f
+        );
 
         double conditionedEnergy = 0.0d;
         float[] blendedFrame = new float[frame.length];
@@ -184,6 +207,12 @@ final class PocketNoiseReducer {
                     + ((1.0f - ambientFloorMix) * suppressed);
             blendedFrame[index] = blended;
             conditionedEnergy += blended * blended;
+
+            float playbackSuppressed = (lowBand[index] * playbackLowBandAttenuation)
+                    + (highBand[index] * playbackHighBandAttenuation);
+            float playbackBlended = (playbackAmbientMix * frame[index])
+                    + ((1.0f - playbackAmbientMix) * playbackSuppressed);
+            playbackFrame[index] = saturate(Math.round(playbackBlended));
         }
 
         float conditionedRmsBeforeGain =
@@ -203,6 +232,7 @@ final class PocketNoiseReducer {
                 (float) (Math.sqrt(finalConditionedEnergy / frame.length) / Short.MAX_VALUE);
         return new Result(
                 conditionedFrame,
+                playbackFrame,
                 rawRms,
                 conditionedRms,
                 spectralFlux,

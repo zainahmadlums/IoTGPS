@@ -302,7 +302,7 @@ public class AudioTrackingService extends Service {
 
         short[] conditionedFrame = analysisResult != null
                 && analysisResult.getVadResult() != null
-                ? analysisResult.getVadResult().getConditionedFrame()
+                ? analysisResult.getVadResult().getPlaybackFrame()
                 : null;
         if (conditionedFrame == null || conditionedFrame.length != rawFrame.length) {
             conditionedFrame = rawFrame;

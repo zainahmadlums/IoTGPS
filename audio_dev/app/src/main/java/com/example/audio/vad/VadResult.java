@@ -6,16 +6,24 @@ public class VadResult {
     private final boolean speech;
     private final Float confidence;
     private final short[] conditionedFrame;
+    private final short[] playbackFrame;
 
     public VadResult(long timestampMillis, boolean speech, Float confidence) {
-        this(timestampMillis, speech, confidence, null);
+        this(timestampMillis, speech, confidence, null, null);
     }
 
-    public VadResult(long timestampMillis, boolean speech, Float confidence, short[] conditionedFrame) {
+    public VadResult(
+            long timestampMillis,
+            boolean speech,
+            Float confidence,
+            short[] conditionedFrame,
+            short[] playbackFrame
+    ) {
         this.timestampMillis = timestampMillis;
         this.speech = speech;
         this.confidence = confidence;
         this.conditionedFrame = conditionedFrame;
+        this.playbackFrame = playbackFrame;
     }
 
     public long getTimestampMillis() {
@@ -32,5 +40,9 @@ public class VadResult {
 
     public short[] getConditionedFrame() {
         return conditionedFrame;
+    }
+
+    public short[] getPlaybackFrame() {
+        return playbackFrame;
     }
 }

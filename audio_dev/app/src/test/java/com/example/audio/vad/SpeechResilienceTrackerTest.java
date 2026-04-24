@@ -12,6 +12,7 @@ public class SpeechResilienceTrackerTest {
         SpeechResilienceTracker tracker = new SpeechResilienceTracker();
         PocketNoiseReducer.Result recoveredSpeech = new PocketNoiseReducer.Result(
                 new short[0],
+                new short[0],
                 0.05f,
                 0.04f,
                 0.06f,
@@ -31,6 +32,7 @@ public class SpeechResilienceTrackerTest {
     public void entersSpeechOnModerateRecoveredVoicing() {
         SpeechResilienceTracker tracker = new SpeechResilienceTracker();
         PocketNoiseReducer.Result recoveredSpeech = new PocketNoiseReducer.Result(
+                new short[0],
                 new short[0],
                 0.04f,
                 0.03f,
@@ -52,6 +54,7 @@ public class SpeechResilienceTrackerTest {
         SpeechResilienceTracker tracker = new SpeechResilienceTracker();
         PocketNoiseReducer.Result speechFrame = new PocketNoiseReducer.Result(
                 new short[0],
+                new short[0],
                 0.05f,
                 0.05f,
                 0.03f,
@@ -63,6 +66,7 @@ public class SpeechResilienceTrackerTest {
                 0.62f
         );
         PocketNoiseReducer.Result rubbingFrame = new PocketNoiseReducer.Result(
+                new short[0],
                 new short[0],
                 0.10f,
                 0.035f,
@@ -87,6 +91,7 @@ public class SpeechResilienceTrackerTest {
         SpeechResilienceTracker tracker = new SpeechResilienceTracker();
         PocketNoiseReducer.Result speechFrame = new PocketNoiseReducer.Result(
                 new short[0],
+                new short[0],
                 0.05f,
                 0.05f,
                 0.03f,
@@ -98,6 +103,7 @@ public class SpeechResilienceTrackerTest {
                 0.62f
         );
         PocketNoiseReducer.Result silenceFrame = new PocketNoiseReducer.Result(
+                new short[0],
                 new short[0],
                 0.01f,
                 0.01f,
