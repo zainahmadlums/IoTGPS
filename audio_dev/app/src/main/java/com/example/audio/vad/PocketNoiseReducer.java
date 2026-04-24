@@ -4,6 +4,16 @@ import com.example.audio.util.MathUtils;
 
 final class PocketNoiseReducer {
 
+    private static final class PitchEstimate {
+        private final float voicingScore;
+        private final int pitchLag;
+
+        PitchEstimate(float voicingScore, int pitchLag) {
+            this.voicingScore = voicingScore;
+            this.pitchLag = pitchLag;
+        }
+    }
+
     static final class Result {
         private final short[] conditionedFrame;
         private final short[] playbackFrame;
@@ -16,6 +26,9 @@ final class PocketNoiseReducer {
         private final float voicingScore;
         private final float rubbingScore;
         private final float speechScore;
+        private final float occlusionScore;
+        private final float unreliableScore;
+        private final boolean rejectForVad;
 
         Result(
                 short[] conditionedFrame,
@@ -28,7 +41,10 @@ final class PocketNoiseReducer {
                 float highBandRatio,
                 float voicingScore,
                 float rubbingScore,
-                float speechScore
+                float speechScore,
+                float occlusionScore,
+                float unreliableScore,
+                boolean rejectForVad
         ) {
             this.conditionedFrame = conditionedFrame;
             this.playbackFrame = playbackFrame;
@@ -41,6 +57,9 @@ final class PocketNoiseReducer {
             this.voicingScore = voicingScore;
             this.rubbingScore = rubbingScore;
             this.speechScore = speechScore;
+            this.occlusionScore = occlusionScore;
+            this.unreliableScore = unreliableScore;
+            this.rejectForVad = rejectForVad;
         }
 
         short[] getConditionedFrame() {
@@ -86,6 +105,18 @@ final class PocketNoiseReducer {
         float getSpeechScore() {
             return speechScore;
         }
+
+        float getOcclusionScore() {
+            return occlusionScore;
+        }
+
+        float getUnreliableScore() {
+            return unreliableScore;
+        }
+
+        boolean shouldRejectForVad() {
+            return rejectForVad;
+        }
     }
 
     private static final float LOW_PASS_SMOOTHING = 0.12f;
@@ -98,6 +129,8 @@ final class PocketNoiseReducer {
     private static final float MAX_AMBIENT_FLOOR_MIX = 0.24f;
     private static final float MIN_LOW_BAND_ATTENUATION = 0.18f;
     private static final float MIN_HIGH_BAND_ATTENUATION = 0.72f;
+    private static final float HARD_GATE_DOMINANCE_THRESHOLD = 0.46f;
+    private static final float HARD_GATE_SPEECH_EVIDENCE_THRESHOLD = 0.42f;
     private static final int MIN_PITCH_LAG = 32;
     private static final int MAX_PITCH_LAG = 160;
     private static final int LAG_STEP = 4;
@@ -107,13 +140,43 @@ final class PocketNoiseReducer {
 
     Result condition(short[] frame, float spectralFlux, float zcr) {
         if (frame == null) {
-            return new Result(new short[0], new short[0], 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            return new Result(
+                    new short[0],
+                    new short[0],
+                    0.0f,
+                    0.0f,
+                    spectralFlux,
+                    zcr,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    false
+            );
         }
 
         short[] conditionedFrame = new short[frame.length];
         short[] playbackFrame = new short[frame.length];
         if (frame.length == 0) {
-            return new Result(conditionedFrame, playbackFrame, 0.0f, 0.0f, spectralFlux, zcr, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            return new Result(
+                    conditionedFrame,
+                    playbackFrame,
+                    0.0f,
+                    0.0f,
+                    spectralFlux,
+                    zcr,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    false
+            );
         }
 
         float[] lowBand = new float[frame.length];
@@ -134,14 +197,15 @@ final class PocketNoiseReducer {
             highEnergy += highComponent * highComponent;
         }
 
+        PitchEstimate pitchEstimate = estimatePitch(frame);
         float rawRms = (float) (Math.sqrt(rawEnergy / frame.length) / Short.MAX_VALUE);
         float lowBandRatio = rawEnergy > 0.0d ? (float) (lowEnergy / rawEnergy) : 0.0f;
         float highBandRatio = rawEnergy > 0.0d ? (float) (highEnergy / rawEnergy) : 0.0f;
-        float voicingScore = estimateVoicing(frame);
+        float voicingScore = pitchEstimate.voicingScore;
         float fluxScore = MathUtils.clamp(spectralFlux / 0.08f, 0.0f, 1.0f);
         float zcrScore = MathUtils.clamp(zcr / 0.22f, 0.0f, 1.0f);
 
-        float speechScore = MathUtils.clamp(
+        float speechEvidence = MathUtils.clamp(
                 (0.48f * voicingScore)
                         + (0.32f * highBandRatio)
                         + (0.12f * (1.0f - Math.min(1.0f, fluxScore * 0.6f)))
@@ -149,11 +213,76 @@ final class PocketNoiseReducer {
                 0.0f,
                 1.0f
         );
-        float rubbingScore = MathUtils.clamp(
+        float rubbingSignature = MathUtils.clamp(
                 (0.32f * lowBandRatio)
                         + (0.26f * fluxScore)
                         + (0.18f * zcrScore)
                         + (0.24f * (1.0f - voicingScore)),
+                0.0f,
+                1.0f
+        );
+        float occlusionSignature = MathUtils.clamp(
+                (0.42f * lowBandRatio)
+                        + (0.30f * (1.0f - highBandRatio))
+                        + (0.16f * (1.0f - Math.min(1.0f, fluxScore * 1.1f)))
+                        + (0.12f * (1.0f - Math.min(1.0f, zcrScore * 1.1f))),
+                0.0f,
+                1.0f
+        );
+        float rubbingDominance = MathUtils.clamp(
+                (0.62f * rubbingSignature)
+                        + (0.22f * lowBandRatio)
+                        + (0.10f * (1.0f - highBandRatio))
+                        - (0.52f * speechEvidence)
+                        - (0.12f * voicingScore),
+                0.0f,
+                1.0f
+        );
+        float speechScore = MathUtils.clamp(
+                speechEvidence - (0.28f * rubbingDominance),
+                0.0f,
+                1.0f
+        );
+        float rubbingScore = MathUtils.clamp(
+                rubbingSignature + (0.35f * rubbingDominance),
+                0.0f,
+                1.0f
+        );
+        float occlusionScore = MathUtils.clamp(
+                (0.64f * occlusionSignature)
+                        + (0.14f * (1.0f - Math.min(1.0f, rawRms / 0.045f)))
+                        + (0.10f * (1.0f - speechEvidence))
+                        - (0.22f * voicingScore)
+                        - (0.10f * highBandRatio),
+                0.0f,
+                1.0f
+        );
+        float unreliableScore = MathUtils.clamp(
+                (0.58f * rubbingDominance)
+                        + (0.42f * occlusionScore)
+                        - (0.44f * speechEvidence)
+                        - (0.16f * voicingScore),
+                0.0f,
+                1.0f
+        );
+        float rubbingGate = MathUtils.clamp(
+                (rubbingDominance - 0.26f) / 0.54f,
+                0.0f,
+                1.0f
+        );
+        float unreliableGate = MathUtils.clamp(
+                (unreliableScore - 0.24f) / 0.56f,
+                0.0f,
+                1.0f
+        );
+        boolean rejectForVad = unreliableScore >= 0.50f
+                && speechEvidence <= 0.52f
+                && !(voicingScore >= 0.56f && highBandRatio >= 0.22f);
+        boolean hardRubbingGate = rubbingDominance >= HARD_GATE_DOMINANCE_THRESHOLD
+                && speechEvidence <= HARD_GATE_SPEECH_EVIDENCE_THRESHOLD;
+        boolean hardSuppressionGate = hardRubbingGate || (rejectForVad && occlusionScore >= 0.56f);
+        float suppressionGate = MathUtils.clamp(
+                Math.max(rubbingGate, 0.82f * unreliableGate),
                 0.0f,
                 1.0f
         );
@@ -166,36 +295,67 @@ final class PocketNoiseReducer {
                 1.0f
         );
         float lowBandAttenuation = MathUtils.clamp(
-                1.0f - (0.88f * rubbingScore * (1.0f - (0.82f * speechProtection))),
-                MIN_LOW_BAND_ATTENUATION,
+                1.0f - (0.97f * suppressionGate * (1.0f - (0.88f * speechProtection))),
+                hardSuppressionGate ? 0.02f : MIN_LOW_BAND_ATTENUATION,
                 1.0f
         );
         float highBandAttenuation = MathUtils.clamp(
-                1.0f - (0.20f * rubbingScore * (1.0f - (0.72f * speechProtection))),
-                MIN_HIGH_BAND_ATTENUATION,
+                1.0f - (0.52f * suppressionGate * (1.0f - (0.82f * speechProtection))),
+                hardSuppressionGate ? 0.24f : MIN_HIGH_BAND_ATTENUATION,
                 1.0f
         );
         float ambientFloorMix = MathUtils.clamp(
                 BASE_AMBIENT_FLOOR_MIX
-                        + (0.14f * speechProtection)
-                        - (0.16f * rubbingScore),
-                MIN_AMBIENT_FLOOR_MIX,
+                        + (0.10f * speechProtection)
+                        - (0.24f * suppressionGate),
+                hardSuppressionGate ? 0.0f : MIN_AMBIENT_FLOOR_MIX,
                 MAX_AMBIENT_FLOOR_MIX
         );
         float playbackLowBandAttenuation = MathUtils.clamp(
-                1.0f - (0.40f * rubbingScore * (1.0f - (0.55f * speechProtection))),
-                0.60f,
+                1.0f - (0.84f * suppressionGate * (1.0f - (0.60f * speechProtection))),
+                hardSuppressionGate ? 0.08f : 0.32f,
                 1.0f
         );
         float playbackHighBandAttenuation = MathUtils.clamp(
-                1.0f - (0.08f * rubbingScore * (1.0f - (0.65f * speechProtection))),
-                0.92f,
+                1.0f - (0.30f * suppressionGate * (1.0f - (0.74f * speechProtection))),
+                hardSuppressionGate ? 0.48f : 0.82f,
                 1.0f
         );
         float playbackAmbientMix = MathUtils.clamp(
-                0.72f - (0.26f * rubbingScore) + (0.14f * speechProtection),
-                0.52f,
-                0.88f
+                0.46f - (0.42f * suppressionGate) + (0.18f * speechProtection),
+                hardSuppressionGate ? 0.02f : 0.10f,
+                0.74f
+        );
+        float conditionedFrameGain = MathUtils.clamp(
+                1.0f - (0.82f * suppressionGate * (1.0f - (0.70f * speechProtection))),
+                hardSuppressionGate ? 0.06f : 0.32f,
+                1.0f
+        );
+        float playbackFrameGain = MathUtils.clamp(
+                1.0f - (0.72f * suppressionGate * (1.0f - (0.78f * speechProtection))),
+                hardSuppressionGate ? 0.12f : 0.46f,
+                1.0f
+        );
+        if (hardSuppressionGate && voicingScore < 0.18f) {
+            conditionedFrameGain = Math.min(conditionedFrameGain, 0.04f);
+            playbackFrameGain = Math.min(playbackFrameGain, 0.10f);
+        }
+        float[] speechEstimate = buildSpeechEstimate(
+                frame,
+                highBand,
+                pitchEstimate.pitchLag,
+                speechProtection,
+                voicingScore
+        );
+        float speechIsolationMix = MathUtils.clamp(
+                (0.78f * suppressionGate) + (0.12f * (1.0f - speechProtection)),
+                0.0f,
+                0.96f
+        );
+        float playbackSpeechIsolationMix = MathUtils.clamp(
+                (0.92f * suppressionGate) + (0.08f * (1.0f - speechProtection)),
+                0.0f,
+                0.98f
         );
 
         double conditionedEnergy = 0.0d;
@@ -205,6 +365,11 @@ final class PocketNoiseReducer {
                     + (highBand[index] * highBandAttenuation);
             float blended = (ambientFloorMix * frame[index])
                     + ((1.0f - ambientFloorMix) * suppressed);
+            float speechFocused = speechEstimate[index]
+                    * MathUtils.clamp(0.52f + (0.58f * speechProtection), 0.32f, 1.0f);
+            blended = ((1.0f - speechIsolationMix) * blended)
+                    + (speechIsolationMix * speechFocused);
+            blended *= conditionedFrameGain;
             blendedFrame[index] = blended;
             conditionedEnergy += blended * blended;
 
@@ -212,6 +377,9 @@ final class PocketNoiseReducer {
                     + (highBand[index] * playbackHighBandAttenuation);
             float playbackBlended = (playbackAmbientMix * frame[index])
                     + ((1.0f - playbackAmbientMix) * playbackSuppressed);
+            playbackBlended = ((1.0f - playbackSpeechIsolationMix) * playbackBlended)
+                    + (playbackSpeechIsolationMix * speechEstimate[index]);
+            playbackBlended *= playbackFrameGain;
             playbackFrame[index] = saturate(Math.round(playbackBlended));
         }
 
@@ -241,7 +409,10 @@ final class PocketNoiseReducer {
                 highBandRatio,
                 voicingScore,
                 rubbingScore,
-                speechScore
+                speechScore,
+                occlusionScore,
+                unreliableScore,
+                rejectForVad
         );
     }
 
@@ -250,9 +421,9 @@ final class PocketNoiseReducer {
         smoothedGain = 1.0f;
     }
 
-    private float estimateVoicing(short[] frame) {
+    private PitchEstimate estimatePitch(short[] frame) {
         if (frame.length <= MIN_PITCH_LAG) {
-            return 0.0f;
+            return new PitchEstimate(0.0f, -1);
         }
 
         double mean = 0.0d;
@@ -267,10 +438,11 @@ final class PocketNoiseReducer {
             totalEnergy += centered * centered;
         }
         if (totalEnergy <= 0.0d) {
-            return 0.0f;
+            return new PitchEstimate(0.0f, -1);
         }
 
         double bestCorrelation = 0.0d;
+        int bestLag = -1;
         int upperLag = Math.min(MAX_PITCH_LAG, frame.length / 2);
         for (int lag = MIN_PITCH_LAG; lag <= upperLag; lag += LAG_STEP) {
             double correlation = 0.0d;
@@ -281,10 +453,48 @@ final class PocketNoiseReducer {
             }
             if (correlation > bestCorrelation) {
                 bestCorrelation = correlation;
+                bestLag = lag;
             }
         }
 
-        return MathUtils.clamp((float) (bestCorrelation / totalEnergy), 0.0f, 1.0f);
+        return new PitchEstimate(
+                MathUtils.clamp((float) (bestCorrelation / totalEnergy), 0.0f, 1.0f),
+                bestLag
+        );
+    }
+
+    private float[] buildSpeechEstimate(
+            short[] frame,
+            float[] highBand,
+            int pitchLag,
+            float speechProtection,
+            float voicingScore
+    ) {
+        float[] speechEstimate = new float[frame.length];
+        for (int index = 0; index < frame.length; index++) {
+            float periodic = frame[index];
+            int sampleCount = 1;
+            if (pitchLag > 0 && index >= pitchLag) {
+                periodic += frame[index - pitchLag];
+                sampleCount++;
+            }
+            if (pitchLag > 0 && index + pitchLag < frame.length) {
+                periodic += frame[index + pitchLag];
+                sampleCount++;
+            }
+            periodic /= sampleCount;
+
+            float harmonicComponent = (pitchLag > 0 ? periodic : frame[index]);
+            float unvoicedComponent = highBand[index];
+            float harmonicMix = MathUtils.clamp(
+                    (0.25f + (0.70f * voicingScore) + (0.18f * speechProtection)),
+                    0.18f,
+                    0.96f
+            );
+            speechEstimate[index] = (harmonicMix * harmonicComponent)
+                    + ((1.0f - harmonicMix) * unvoicedComponent);
+        }
+        return speechEstimate;
     }
 
     private short saturate(int sample) {

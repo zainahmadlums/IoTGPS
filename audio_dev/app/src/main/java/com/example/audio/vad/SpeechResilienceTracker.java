@@ -41,17 +41,23 @@ final class SpeechResilienceTracker {
             boolean conditionedSpeech,
             PocketNoiseReducer.Result reductionResult
     ) {
-        boolean directSpeech = rawSpeech || conditionedSpeech;
+        float rubbingScore = reductionResult.getRubbingScore();
+        float speechScore = reductionResult.getSpeechScore();
+        float occlusionScore = reductionResult.getOcclusionScore();
+        float unreliableScore = reductionResult.getUnreliableScore();
+        boolean rejectForVad = reductionResult.shouldRejectForVad();
+        boolean directSpeech = conditionedSpeech
+                && (!rejectForVad
+                || speechScore >= 0.64f
+                || reductionResult.getVoicingScore() >= 0.72f);
         if (directSpeech) {
             lastDirectSpeechTimestampMillis = timestampMillis;
         }
 
-        float rubbingScore = reductionResult.getRubbingScore();
-        float speechScore = reductionResult.getSpeechScore();
-        float rawWeight = 0.52f + (0.23f * (1.0f - rubbingScore));
-        float conditionedWeight = 0.48f + (0.30f * rubbingScore);
+        float rawWeight = 0.04f + (0.05f * (1.0f - rubbingScore));
+        float conditionedWeight = 0.96f + (0.30f * speechScore) - (0.12f * unreliableScore);
         float score = 0.0f;
-        float totalWeight = rawWeight + conditionedWeight + 0.32f;
+        float totalWeight = rawWeight + conditionedWeight + 0.46f;
 
         if (rawSpeech) {
             score += rawWeight;
@@ -59,17 +65,23 @@ final class SpeechResilienceTracker {
         if (conditionedSpeech) {
             score += conditionedWeight;
         }
-        score += speechScore * 0.32f;
+        score += speechScore * 0.46f;
 
         if (rawSpeech && !conditionedSpeech) {
-            score -= 0.14f * rubbingScore;
+            score -= 0.34f + (0.28f * rubbingScore) + (0.12f * unreliableScore);
         } else if (!rawSpeech && conditionedSpeech) {
-            score += (0.22f * speechScore) + (0.10f * rubbingScore);
-            score += 0.12f * reductionResult.getVoicingScore();
+            score += (0.24f * speechScore) + (0.08f * rubbingScore);
+            score += 0.14f * reductionResult.getVoicingScore();
         }
-
-        if (reductionResult.getConditionedRms() > reductionResult.getRawRms()) {
-            score += 0.05f;
+        if (conditionedSpeech && reductionResult.getConditionedRms() > 0.010f) {
+            score += 0.06f;
+        }
+        if (rejectForVad) {
+            score -= 0.28f + (0.26f * unreliableScore) + (0.10f * occlusionScore);
+            totalWeight += 0.32f;
+        }
+        if (conditionedSpeech && speechScore >= 0.68f && reductionResult.getVoicingScore() >= 0.62f) {
+            score += 0.10f;
         }
 
         float fusedScore = MathUtils.clamp(score / totalWeight, 0.0f, 1.0f);
@@ -79,6 +91,9 @@ final class SpeechResilienceTracker {
         }
         if (conditionedSpeech && reductionResult.getVoicingScore() >= 0.60f) {
             speechThreshold -= 0.03f;
+        }
+        if (rejectForVad) {
+            speechThreshold += 0.09f + (0.06f * unreliableScore);
         }
         speechThreshold = Math.max(EXIT_THRESHOLD + 0.08f, speechThreshold);
         boolean speechLean = fusedScore >= speechThreshold;
@@ -104,7 +119,8 @@ final class SpeechResilienceTracker {
         boolean rubbingHold = recentDirectSpeech
                 && rubbingScore >= RUBBING_HOLD_THRESHOLD
                 && speechScore >= 0.18f
-                && reductionResult.getConditionedRms() >= 0.012f;
+                && reductionResult.getConditionedRms() >= 0.012f
+                && !rejectForVad;
 
         if (speechActive
                 && consecutiveSilenceLeanFrames >= EXIT_FRAME_REQUIREMENT

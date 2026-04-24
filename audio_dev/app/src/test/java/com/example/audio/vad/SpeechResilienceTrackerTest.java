@@ -21,7 +21,10 @@ public class SpeechResilienceTrackerTest {
                 0.58f,
                 0.76f,
                 0.38f,
-                0.88f
+                0.88f,
+                0.18f,
+                0.12f,
+                false
         );
 
         assertFalse(tracker.refine(0L, false, true, recoveredSpeech).isSpeech());
@@ -42,11 +45,62 @@ public class SpeechResilienceTrackerTest {
                 0.52f,
                 0.68f,
                 0.52f,
-                0.56f
+                0.56f,
+                0.22f,
+                0.20f,
+                false
         );
 
         assertFalse(tracker.refine(0L, false, true, recoveredSpeech).isSpeech());
         assertTrue(tracker.refine(32L, false, true, recoveredSpeech).isSpeech());
+    }
+
+    @Test
+    public void doesNotEnterSpeechOnRawOnlySignalWhenCleanerRejectsFrame() {
+        SpeechResilienceTracker tracker = new SpeechResilienceTracker();
+        PocketNoiseReducer.Result rubbingDominantFrame = new PocketNoiseReducer.Result(
+                new short[0],
+                new short[0],
+                0.09f,
+                0.01f,
+                0.08f,
+                0.15f,
+                0.78f,
+                0.22f,
+                0.12f,
+                0.86f,
+                0.10f,
+                0.32f,
+                0.82f,
+                true
+        );
+
+        assertFalse(tracker.refine(0L, true, false, rubbingDominantFrame).isSpeech());
+        assertFalse(tracker.refine(32L, true, false, rubbingDominantFrame).isSpeech());
+    }
+
+    @Test
+    public void doesNotEnterSpeechOnUnreliableOccludedFrame() {
+        SpeechResilienceTracker tracker = new SpeechResilienceTracker();
+        PocketNoiseReducer.Result occludedFrame = new PocketNoiseReducer.Result(
+                new short[0],
+                new short[0],
+                0.03f,
+                0.01f,
+                0.01f,
+                0.04f,
+                0.82f,
+                0.18f,
+                0.26f,
+                0.34f,
+                0.22f,
+                0.86f,
+                0.78f,
+                true
+        );
+
+        assertFalse(tracker.refine(0L, false, true, occludedFrame).isSpeech());
+        assertFalse(tracker.refine(32L, false, true, occludedFrame).isSpeech());
     }
 
     @Test
@@ -63,7 +117,10 @@ public class SpeechResilienceTrackerTest {
                 0.65f,
                 0.60f,
                 0.28f,
-                0.62f
+                0.62f,
+                0.14f,
+                0.08f,
+                false
         );
         PocketNoiseReducer.Result rubbingFrame = new PocketNoiseReducer.Result(
                 new short[0],
@@ -76,7 +133,10 @@ public class SpeechResilienceTrackerTest {
                 0.28f,
                 0.22f,
                 0.70f,
-                0.24f
+                0.24f,
+                0.18f,
+                0.26f,
+                false
         );
 
         tracker.refine(0L, true, true, speechFrame);
@@ -100,7 +160,10 @@ public class SpeechResilienceTrackerTest {
                 0.65f,
                 0.60f,
                 0.28f,
-                0.62f
+                0.62f,
+                0.14f,
+                0.08f,
+                false
         );
         PocketNoiseReducer.Result silenceFrame = new PocketNoiseReducer.Result(
                 new short[0],
@@ -113,7 +176,10 @@ public class SpeechResilienceTrackerTest {
                 0.50f,
                 0.08f,
                 0.12f,
-                0.08f
+                0.08f,
+                0.18f,
+                0.10f,
+                false
         );
 
         tracker.refine(0L, true, true, speechFrame);

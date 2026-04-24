@@ -55,6 +55,11 @@ public class SileroSpeechDetector implements SpeechDetector {
         short[] conditionedFrame = reductionResult.getConditionedFrame();
         boolean rawSpeech = rawVadDelegate.isSpeech(frame);
         boolean conditionedSpeech = conditionedVadDelegate.isSpeech(conditionedFrame);
+        if (reductionResult.shouldRejectForVad()
+                && reductionResult.getSpeechScore() < 0.64f
+                && reductionResult.getVoicingScore() < 0.70f) {
+            conditionedSpeech = false;
+        }
 
         SpeechResilienceTracker.Decision decision = speechResilienceTracker.refine(
                 timestampMillis,
@@ -158,6 +163,12 @@ public class SileroSpeechDetector implements SpeechDetector {
                         + reductionResult.getRubbingScore()
                         + ", speechScore="
                         + reductionResult.getSpeechScore()
+                        + ", occlusion="
+                        + reductionResult.getOcclusionScore()
+                        + ", unreliable="
+                        + reductionResult.getUnreliableScore()
+                        + ", rejectForVad="
+                        + reductionResult.shouldRejectForVad()
                         + ", rawSpeech="
                         + rawSpeech
                         + ", conditionedSpeech="
