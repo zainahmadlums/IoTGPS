@@ -50,7 +50,7 @@
     <string name="instructor_setup_recording">Recording instructor voice</string>
     <string name="instructor_setup_title">Instructor Voice Setup</string>
     <string name="instructor_setup_body">Read the paragraph below in your normal teaching voice. The app stores this setup recording and its voice profile metadata before unlocking live tracking.</string>
-    <string name="instructor_setup_prompt">Today we will move through the lesson clearly, define each idea with examples, ask students to respond, and pause when the room needs more time. This recording gives DeployTeach a clean instructor reference for later classroom speech analysis.</string>
+    <string name="instructor_setup_prompt">Today we will move through the lesson clearly and connect each idea to an example. I will define the key terms, explain the method step by step, ask students to respond, and pause when the room needs more time. During discussion, I may speak softly, then louder, then return to a normal pace so the class can follow the argument. This recording gives DeployTeach a stable instructor reference across pitch, rhythm, and classroom phrasing for later participation analysis.</string>
     <string name="instructor_setup_timer_ready">30 second setup</string>
     <string name="instructor_setup_timer_format">%1$d seconds remaining</string>
     <string name="instructor_setup_start">Start Voice Setup</string>

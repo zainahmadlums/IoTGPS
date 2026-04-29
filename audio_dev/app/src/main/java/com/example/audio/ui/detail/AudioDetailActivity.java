@@ -252,7 +252,11 @@ public class AudioDetailActivity extends AppCompatActivity {
                     R.string.detail_longest_speech_format,
                     AudioSessionFormatter.formatDuration(sessionMetadata.getLongestSpeechMillis())
             ));
-            timelineView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
+            if (sessionMetadata.getRoleIntervals().isEmpty()) {
+                timelineView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
+            } else {
+                timelineView.setRoleData(sessionMetadata.getRoleIntervals(), sessionMetadata.getDurationMillis());
+            }
             bucketChartView.setData(sessionMetadata.getSpeechIntervals(), sessionMetadata.getDurationMillis());
             actionHintText.setText(
                     hasPlaybackAudio()

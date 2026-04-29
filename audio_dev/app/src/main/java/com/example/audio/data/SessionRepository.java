@@ -51,6 +51,7 @@ public class SessionRepository {
         SpeechEvent speechEvent = new SpeechEvent(
                 result.getVadResult().getTimestampMillis(),
                 result.getVadResult().isSpeech(),
+                result.getVadResult().getSpeakerRole(),
                 result.getDisturbanceResult() != null
                         && result.getDisturbanceResult().isDisturbanceDetected(),
                 result.getReverbResult() != null

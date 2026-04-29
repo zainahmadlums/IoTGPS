@@ -20,12 +20,16 @@ public final class SessionMetadata {
     private static final String KEY_DURATION_MILLIS = "durationMillis";
     private static final String KEY_TOTAL_SPEECH_MILLIS = "totalSpeechMillis";
     private static final String KEY_TOTAL_SILENCE_MILLIS = "totalSilenceMillis";
+    private static final String KEY_TOTAL_INSTRUCTOR_MILLIS = "totalInstructorMillis";
+    private static final String KEY_TOTAL_STUDENT_MILLIS = "totalStudentMillis";
+    private static final String KEY_TOTAL_BOTH_MILLIS = "totalBothMillis";
     private static final String KEY_SPEAKING_RATIO = "speakingRatio";
     private static final String KEY_DISTURBANCE_COUNT = "disturbanceCount";
     private static final String KEY_REVERB_LEVEL = "reverbLevel";
     private static final String KEY_INTERVAL_COUNT = "intervalCount";
     private static final String KEY_LONGEST_SPEECH_MILLIS = "longestSpeechMillis";
     private static final String KEY_SPEECH_INTERVALS = "speechIntervals";
+    private static final String KEY_ROLE_INTERVALS = "roleIntervals";
     private static final String KEY_RAW_AUDIO_FILE_NAME = "rawAudioFileName";
     private static final String KEY_CONDITIONED_AUDIO_FILE_NAME = "conditionedAudioFileName";
     private static final String KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME = "instructorProfileMetadataFileName";
@@ -39,12 +43,16 @@ public final class SessionMetadata {
     private final long durationMillis;
     private final long totalSpeechMillis;
     private final long totalSilenceMillis;
+    private final long totalInstructorMillis;
+    private final long totalStudentMillis;
+    private final long totalBothMillis;
     private final float speakingRatio;
     private final int disturbanceCount;
     private final ReverbResult.Level reverbLevel;
     private final int intervalCount;
     private final long longestSpeechMillis;
     private final List<SessionSpeechInterval> speechIntervals;
+    private final List<SessionRoleInterval> roleIntervals;
     private final String rawAudioFileName;
     private final String conditionedAudioFileName;
     private final String instructorProfileMetadataFileName;
@@ -59,12 +67,16 @@ public final class SessionMetadata {
             long durationMillis,
             long totalSpeechMillis,
             long totalSilenceMillis,
+            long totalInstructorMillis,
+            long totalStudentMillis,
+            long totalBothMillis,
             float speakingRatio,
             int disturbanceCount,
             ReverbResult.Level reverbLevel,
             int intervalCount,
             long longestSpeechMillis,
             List<SessionSpeechInterval> speechIntervals,
+            List<SessionRoleInterval> roleIntervals,
             String rawAudioFileName,
             String conditionedAudioFileName,
             String instructorProfileMetadataFileName,
@@ -78,12 +90,16 @@ public final class SessionMetadata {
         this.durationMillis = durationMillis;
         this.totalSpeechMillis = totalSpeechMillis;
         this.totalSilenceMillis = totalSilenceMillis;
+        this.totalInstructorMillis = totalInstructorMillis;
+        this.totalStudentMillis = totalStudentMillis;
+        this.totalBothMillis = totalBothMillis;
         this.speakingRatio = speakingRatio;
         this.disturbanceCount = disturbanceCount;
         this.reverbLevel = reverbLevel;
         this.intervalCount = intervalCount;
         this.longestSpeechMillis = longestSpeechMillis;
         this.speechIntervals = Collections.unmodifiableList(new ArrayList<>(speechIntervals));
+        this.roleIntervals = Collections.unmodifiableList(new ArrayList<>(roleIntervals));
         this.rawAudioFileName = rawAudioFileName;
         this.conditionedAudioFileName = conditionedAudioFileName;
         this.instructorProfileMetadataFileName = instructorProfileMetadataFileName;
@@ -122,6 +138,18 @@ public final class SessionMetadata {
         return totalSilenceMillis;
     }
 
+    public long getTotalInstructorMillis() {
+        return totalInstructorMillis;
+    }
+
+    public long getTotalStudentMillis() {
+        return totalStudentMillis;
+    }
+
+    public long getTotalBothMillis() {
+        return totalBothMillis;
+    }
+
     public float getSpeakingRatio() {
         return speakingRatio;
     }
@@ -144,6 +172,10 @@ public final class SessionMetadata {
 
     public List<SessionSpeechInterval> getSpeechIntervals() {
         return speechIntervals;
+    }
+
+    public List<SessionRoleInterval> getRoleIntervals() {
+        return roleIntervals;
     }
 
     public String getRawAudioFileName() {
@@ -172,6 +204,9 @@ public final class SessionMetadata {
         jsonObject.put(KEY_DURATION_MILLIS, durationMillis);
         jsonObject.put(KEY_TOTAL_SPEECH_MILLIS, totalSpeechMillis);
         jsonObject.put(KEY_TOTAL_SILENCE_MILLIS, totalSilenceMillis);
+        jsonObject.put(KEY_TOTAL_INSTRUCTOR_MILLIS, totalInstructorMillis);
+        jsonObject.put(KEY_TOTAL_STUDENT_MILLIS, totalStudentMillis);
+        jsonObject.put(KEY_TOTAL_BOTH_MILLIS, totalBothMillis);
         jsonObject.put(KEY_SPEAKING_RATIO, speakingRatio);
         jsonObject.put(KEY_DISTURBANCE_COUNT, disturbanceCount);
         jsonObject.put(KEY_REVERB_LEVEL, reverbLevel.name());
@@ -183,6 +218,11 @@ public final class SessionMetadata {
             intervalsJson.put(speechInterval.toJson());
         }
         jsonObject.put(KEY_SPEECH_INTERVALS, intervalsJson);
+        JSONArray roleIntervalsJson = new JSONArray();
+        for (SessionRoleInterval roleInterval : roleIntervals) {
+            roleIntervalsJson.put(roleInterval.toJson());
+        }
+        jsonObject.put(KEY_ROLE_INTERVALS, roleIntervalsJson);
         jsonObject.put(KEY_RAW_AUDIO_FILE_NAME, rawAudioFileName);
         jsonObject.put(KEY_CONDITIONED_AUDIO_FILE_NAME, conditionedAudioFileName);
         jsonObject.put(KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME, instructorProfileMetadataFileName);
@@ -201,6 +241,16 @@ public final class SessionMetadata {
                 }
             }
         }
+        JSONArray roleIntervalsJson = jsonObject.optJSONArray(KEY_ROLE_INTERVALS);
+        List<SessionRoleInterval> roleIntervals = new ArrayList<>();
+        if (roleIntervalsJson != null) {
+            for (int index = 0; index < roleIntervalsJson.length(); index++) {
+                JSONObject intervalJson = roleIntervalsJson.optJSONObject(index);
+                if (intervalJson != null) {
+                    roleIntervals.add(SessionRoleInterval.fromJson(intervalJson));
+                }
+            }
+        }
 
         return new SessionMetadata(
                 jsonObject.getString(KEY_SESSION_ID),
@@ -211,6 +261,9 @@ public final class SessionMetadata {
                 jsonObject.getLong(KEY_DURATION_MILLIS),
                 jsonObject.optLong(KEY_TOTAL_SPEECH_MILLIS, 0L),
                 jsonObject.optLong(KEY_TOTAL_SILENCE_MILLIS, 0L),
+                jsonObject.optLong(KEY_TOTAL_INSTRUCTOR_MILLIS, 0L),
+                jsonObject.optLong(KEY_TOTAL_STUDENT_MILLIS, 0L),
+                jsonObject.optLong(KEY_TOTAL_BOTH_MILLIS, 0L),
                 (float) jsonObject.optDouble(KEY_SPEAKING_RATIO, 0.0d),
                 jsonObject.optInt(KEY_DISTURBANCE_COUNT, 0),
                 ReverbResult.Level.valueOf(
@@ -219,6 +272,7 @@ public final class SessionMetadata {
                 jsonObject.optInt(KEY_INTERVAL_COUNT, speechIntervals.size()),
                 jsonObject.optLong(KEY_LONGEST_SPEECH_MILLIS, 0L),
                 speechIntervals,
+                roleIntervals,
                 jsonObject.optString(KEY_RAW_AUDIO_FILE_NAME, null),
                 jsonObject.optString(KEY_CONDITIONED_AUDIO_FILE_NAME, null),
                 jsonObject.optString(KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME, null),

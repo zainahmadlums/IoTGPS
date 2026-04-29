@@ -73,7 +73,6 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         sessionViewModel = new ViewModelProvider(this).get(SessionViewModel.class);
-        refreshInstructorProfileState();
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (view, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -82,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         });
 
         bottomNavigationView = findViewById(R.id.bottom_navigation);
+        refreshInstructorProfileState();
         bottomNavigationView.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.navigation_library) {
                 showLibraryScreen();
@@ -151,6 +151,7 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         sessionViewModel.setReverbLevel(speechEvent.getReverbLevel());
         sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
         refreshInstructorProfileState();
+        updateBottomNavigationVisibility();
         notifyDashboardStateChanged();
     }
 
@@ -392,6 +393,16 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
     private void refreshInstructorProfileState() {
         sessionViewModel.setInstructorProfileReady(
                 InstructorVoiceProfileStore.getInstance().hasProfile(this)
+        );
+        updateBottomNavigationVisibility();
+    }
+
+    private void updateBottomNavigationVisibility() {
+        if (bottomNavigationView == null || sessionViewModel == null) {
+            return;
+        }
+        bottomNavigationView.setVisibility(
+                sessionViewModel.isInstructorProfileReady() ? android.view.View.VISIBLE : android.view.View.GONE
         );
     }
 

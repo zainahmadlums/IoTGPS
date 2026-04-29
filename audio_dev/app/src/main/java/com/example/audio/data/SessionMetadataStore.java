@@ -54,6 +54,12 @@ public final class SessionMetadataStore {
                 durationMillis,
                 audioConfig != null ? audioConfig.getFrameDurationMs() : AudioConfig.SILERO_FRAME_DURATION_MS
         );
+        List<SessionRoleInterval> roleIntervals = buildRoleIntervals(
+                speechEvents,
+                startTimeMillis,
+                durationMillis,
+                audioConfig != null ? audioConfig.getFrameDurationMs() : AudioConfig.SILERO_FRAME_DURATION_MS
+        );
         long totalSpeechMillis = 0L;
         long longestSpeechMillis = 0L;
         for (SessionSpeechInterval interval : intervals) {
@@ -61,6 +67,9 @@ public final class SessionMetadataStore {
             longestSpeechMillis = Math.max(longestSpeechMillis, interval.getDurationMillis());
         }
         long totalSilenceMillis = Math.max(0L, durationMillis - totalSpeechMillis);
+        long totalInstructorMillis = totalRoleMillis(roleIntervals, SpeakerRole.INSTRUCTOR);
+        long totalStudentMillis = totalRoleMillis(roleIntervals, SpeakerRole.STUDENT);
+        long totalBothMillis = totalRoleMillis(roleIntervals, SpeakerRole.BOTH);
         float normalizedSpeakingRatio = durationMillis == 0L
                 ? speakingRatio
                 : (float) totalSpeechMillis / durationMillis;
@@ -74,12 +83,16 @@ public final class SessionMetadataStore {
                 durationMillis,
                 totalSpeechMillis,
                 totalSilenceMillis,
+                totalInstructorMillis,
+                totalStudentMillis,
+                totalBothMillis,
                 normalizedSpeakingRatio,
                 disturbanceCount,
                 reverbLevel,
                 intervals.size(),
                 longestSpeechMillis,
                 intervals,
+                roleIntervals,
                 rawAudioFileName,
                 conditionedAudioFileName,
                 instructorProfileMetadataFileName,
@@ -147,12 +160,16 @@ public final class SessionMetadataStore {
                 existingMetadata.getDurationMillis(),
                 existingMetadata.getTotalSpeechMillis(),
                 existingMetadata.getTotalSilenceMillis(),
+                existingMetadata.getTotalInstructorMillis(),
+                existingMetadata.getTotalStudentMillis(),
+                existingMetadata.getTotalBothMillis(),
                 existingMetadata.getSpeakingRatio(),
                 existingMetadata.getDisturbanceCount(),
                 existingMetadata.getReverbLevel(),
                 existingMetadata.getIntervalCount(),
                 existingMetadata.getLongestSpeechMillis(),
                 existingMetadata.getSpeechIntervals(),
+                existingMetadata.getRoleIntervals(),
                 updatedRawAudioFileName,
                 updatedConditionedAudioFileName,
                 existingMetadata.getInstructorProfileMetadataFileName(),
@@ -205,6 +222,59 @@ public final class SessionMetadataStore {
         return intervals;
     }
 
+    private List<SessionRoleInterval> buildRoleIntervals(
+            List<SpeechEvent> speechEvents,
+            long sessionStartTimeMillis,
+            long sessionDurationMillis,
+            long frameDurationMillis
+    ) {
+        List<SessionRoleInterval> intervals = new ArrayList<>();
+        if (speechEvents == null || speechEvents.isEmpty()) {
+            return intervals;
+        }
+
+        SpeakerRole currentRole = null;
+        long currentStart = -1L;
+        long currentEnd = -1L;
+        for (SpeechEvent speechEvent : speechEvents) {
+            SpeakerRole role = speechEvent.isSpeech()
+                    ? speechEvent.getSpeakerRole()
+                    : SpeakerRole.SILENCE;
+            long eventStart = Math.max(0L, speechEvent.getTimestampMillis() - sessionStartTimeMillis);
+            long eventEnd = Math.min(sessionDurationMillis, eventStart + frameDurationMillis);
+
+            if (currentRole == null) {
+                currentRole = role;
+                currentStart = eventStart;
+                currentEnd = eventEnd;
+                continue;
+            }
+
+            if (role == currentRole && eventStart <= currentEnd + MERGE_GAP_MILLIS) {
+                currentEnd = Math.max(currentEnd, eventEnd);
+                continue;
+            }
+
+            maybeAddRoleInterval(intervals, currentRole, currentStart, currentEnd);
+            currentRole = role;
+            currentStart = eventStart;
+            currentEnd = eventEnd;
+        }
+
+        maybeAddRoleInterval(intervals, currentRole, currentStart, currentEnd);
+        return intervals;
+    }
+
+    private long totalRoleMillis(List<SessionRoleInterval> intervals, SpeakerRole speakerRole) {
+        long totalMillis = 0L;
+        for (SessionRoleInterval interval : intervals) {
+            if (interval.getRole() == speakerRole) {
+                totalMillis += interval.getDurationMillis();
+            }
+        }
+        return totalMillis;
+    }
+
     private void maybeAddInterval(
             List<SessionSpeechInterval> intervals,
             long startOffsetMillis,
@@ -219,5 +289,22 @@ public final class SessionMetadataStore {
             return;
         }
         intervals.add(new SessionSpeechInterval(startOffsetMillis, endOffsetMillis, durationMillis));
+    }
+
+    private void maybeAddRoleInterval(
+            List<SessionRoleInterval> intervals,
+            SpeakerRole role,
+            long startOffsetMillis,
+            long endOffsetMillis
+    ) {
+        if (role == null || startOffsetMillis < 0L || endOffsetMillis <= startOffsetMillis) {
+            return;
+        }
+
+        long durationMillis = endOffsetMillis - startOffsetMillis;
+        if (durationMillis < MIN_INTERVAL_MILLIS) {
+            return;
+        }
+        intervals.add(new SessionRoleInterval(role, startOffsetMillis, endOffsetMillis, durationMillis));
     }
 }
