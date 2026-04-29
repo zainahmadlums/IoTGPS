@@ -31,6 +31,84 @@
             android:textAppearance="@style/TextAppearance.DeployTeach.Label" />
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/instructor_setup_card"
+            style="@style/Widget.DeployTeach.GlassCard.Strong"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="22dp">
+
+                <TextView
+                    android:id="@+id/instructor_setup_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_status_pill"
+                    android:paddingStart="14dp"
+                    android:paddingTop="7dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="7dp"
+                    android:text="@string/instructor_setup_required"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Label"
+                    android:textColor="@color/dt_cyan" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/instructor_setup_title"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Headline" />
+
+                <TextView
+                    android:id="@+id/instructor_setup_body_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/instructor_setup_body"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Body" />
+
+                <TextView
+                    android:id="@+id/instructor_setup_prompt_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/instructor_setup_prompt"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.Title" />
+
+                <TextView
+                    android:id="@+id/instructor_setup_timer_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/instructor_setup_timer_ready"
+                    android:textAppearance="@style/TextAppearance.DeployTeach.MetricValue" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/start_instructor_setup_button"
+                    style="@style/Widget.DeployTeach.Button.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:minHeight="58dp"
+                    android:text="@string/instructor_setup_start" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/cancel_instructor_setup_button"
+                    style="@style/Widget.DeployTeach.Button.Stop"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:minHeight="56dp"
+                    android:text="@string/instructor_setup_cancel" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/dashboard_hero_card"
             style="@style/Widget.DeployTeach.GlassCard.Strong"
             android:layout_width="match_parent"
@@ -211,6 +289,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout
+            android:id="@+id/dashboard_metrics_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"

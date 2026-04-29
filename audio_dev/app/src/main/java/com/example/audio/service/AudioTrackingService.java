@@ -21,6 +21,8 @@ import com.example.audio.audio.AudioRecorderManager;
 import com.example.audio.data.SessionArchiveEntry;
 import com.example.audio.data.SessionArchiveStore;
 import com.example.audio.data.SessionAudioFileManager;
+import com.example.audio.data.InstructorVoiceProfile;
+import com.example.audio.data.InstructorVoiceProfileStore;
 import com.example.audio.data.SessionMetadata;
 import com.example.audio.data.SessionMetadataFileManager;
 import com.example.audio.data.SessionMetadataStore;
@@ -221,6 +223,8 @@ public class AudioTrackingService extends Service {
                 "Session %1$tb %1$td • %1$tI:%1$tM %1$Tp",
                 startTimeMillis
         );
+        InstructorVoiceProfile instructorVoiceProfile =
+                InstructorVoiceProfileStore.getInstance().readProfile(this);
 
         SessionMetadata sessionMetadata = SessionMetadataStore.getInstance().buildMetadata(
                 sessionId,
@@ -228,6 +232,8 @@ public class AudioTrackingService extends Service {
                 metadataFileName,
                 rawAudioFileName,
                 conditionedAudioFileName,
+                instructorVoiceProfile != null ? instructorVoiceProfile.getMetadataFileName() : null,
+                instructorVoiceProfile != null ? instructorVoiceProfile.getAudioFileName() : null,
                 startTimeMillis,
                 endTimeMillis,
                 sessionSummary != null ? sessionSummary.getSpeakingRatio() : 0.0f,

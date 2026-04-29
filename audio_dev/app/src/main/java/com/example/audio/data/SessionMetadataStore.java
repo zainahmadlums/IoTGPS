@@ -37,6 +37,8 @@ public final class SessionMetadataStore {
             String metadataFileName,
             String rawAudioFileName,
             String conditionedAudioFileName,
+            String instructorProfileMetadataFileName,
+            String instructorProfileAudioFileName,
             long startTimeMillis,
             long endTimeMillis,
             float speakingRatio,
@@ -79,7 +81,9 @@ public final class SessionMetadataStore {
                 longestSpeechMillis,
                 intervals,
                 rawAudioFileName,
-                conditionedAudioFileName
+                conditionedAudioFileName,
+                instructorProfileMetadataFileName,
+                instructorProfileAudioFileName
         );
     }
 
@@ -150,7 +154,9 @@ public final class SessionMetadataStore {
                 existingMetadata.getLongestSpeechMillis(),
                 existingMetadata.getSpeechIntervals(),
                 updatedRawAudioFileName,
-                updatedConditionedAudioFileName
+                updatedConditionedAudioFileName,
+                existingMetadata.getInstructorProfileMetadataFileName(),
+                existingMetadata.getInstructorProfileAudioFileName()
         );
         writeMetadata(context, renamedMetadata);
         if (!currentMetadataFileName.equals(updatedMetadataFileName)) {

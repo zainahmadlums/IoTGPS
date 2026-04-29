@@ -12,6 +12,9 @@ public class SessionViewModel extends ViewModel {
     private boolean disturbanceActive;
     private ReverbResult.Level reverbLevel = ReverbResult.Level.LOW;
     private SessionSummary sessionSummary;
+    private boolean instructorProfileReady;
+    private boolean instructorEnrollmentRunning;
+    private long instructorEnrollmentRemainingMillis;
 
     public boolean isSessionRunning() {
         return sessionRunning;
@@ -51,5 +54,29 @@ public class SessionViewModel extends ViewModel {
 
     public void setSessionSummary(SessionSummary sessionSummary) {
         this.sessionSummary = sessionSummary;
+    }
+
+    public boolean isInstructorProfileReady() {
+        return instructorProfileReady;
+    }
+
+    public void setInstructorProfileReady(boolean instructorProfileReady) {
+        this.instructorProfileReady = instructorProfileReady;
+    }
+
+    public boolean isInstructorEnrollmentRunning() {
+        return instructorEnrollmentRunning;
+    }
+
+    public void setInstructorEnrollmentRunning(boolean instructorEnrollmentRunning) {
+        this.instructorEnrollmentRunning = instructorEnrollmentRunning;
+    }
+
+    public long getInstructorEnrollmentRemainingMillis() {
+        return instructorEnrollmentRemainingMillis;
+    }
+
+    public void setInstructorEnrollmentRemainingMillis(long instructorEnrollmentRemainingMillis) {
+        this.instructorEnrollmentRemainingMillis = instructorEnrollmentRemainingMillis;
     }
 }

@@ -70,7 +70,9 @@ public final class SessionMetadataFileManager {
 
         boolean allDeleted = true;
         for (File file : files) {
-            if (file.isFile() && !file.delete()) {
+            if (file.isFile()
+                    && !InstructorVoiceProfileStore.PROFILE_METADATA_FILE_NAME.equals(file.getName())
+                    && !file.delete()) {
                 allDeleted = false;
                 Logger.e(TAG, "Failed to delete session metadata file: " + file.getName());
             }

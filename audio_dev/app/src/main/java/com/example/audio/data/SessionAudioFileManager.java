@@ -13,6 +13,7 @@ public final class SessionAudioFileManager {
     private static final String AUDIO_DIRECTORY = "archived_audio";
     private static final String VARIANT_RAW = "raw";
     private static final String VARIANT_FILTERED = "filtered";
+    private static final String VARIANT_INSTRUCTOR = "instructor_setup";
 
     private SessionAudioFileManager() {
     }
@@ -31,6 +32,10 @@ public final class SessionAudioFileManager {
 
     public static File createConditionedOutputFile(Context context, long startTimeMillis) {
         return new File(getAudioDirectory(context), buildDefaultFileName(startTimeMillis, VARIANT_FILTERED));
+    }
+
+    public static File createInstructorEnrollmentOutputFile(Context context, long startTimeMillis) {
+        return new File(getAudioDirectory(context), buildInstructorFileName(startTimeMillis));
     }
 
     public static File resolveAudioFile(Context context, String generatedFilename) {
@@ -64,7 +69,9 @@ public final class SessionAudioFileManager {
 
         boolean allDeleted = true;
         for (File file : files) {
-            if (file.isFile() && !file.delete()) {
+            if (file.isFile()
+                    && !file.getName().contains("_" + VARIANT_INSTRUCTOR + "_")
+                    && !file.delete()) {
                 allDeleted = false;
                 Logger.e(TAG, "Failed to delete archived audio file: " + file.getName());
             }
@@ -110,6 +117,15 @@ public final class SessionAudioFileManager {
                 "deployteach_%2$s_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
                 startTimeMillis,
                 variant
+        );
+    }
+
+    private static String buildInstructorFileName(long startTimeMillis) {
+        return String.format(
+                Locale.US,
+                "deployteach_%2$s_%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS.wav",
+                startTimeMillis,
+                VARIANT_INSTRUCTOR
         );
     }
 

@@ -45,6 +45,19 @@
     <string name="dashboard_summary_label">Latest summary</string>
     <string name="dashboard_live_capture">Live capture</string>
     <string name="dashboard_preview_unavailable">No session cards available yet</string>
+    <string name="instructor_setup_required">Instructor setup required</string>
+    <string name="instructor_setup_ready">Instructor profile ready</string>
+    <string name="instructor_setup_recording">Recording instructor voice</string>
+    <string name="instructor_setup_title">Instructor Voice Setup</string>
+    <string name="instructor_setup_body">Read the paragraph below in your normal teaching voice. The app stores this setup recording and its voice profile metadata before unlocking live tracking.</string>
+    <string name="instructor_setup_prompt">Today we will move through the lesson clearly, define each idea with examples, ask students to respond, and pause when the room needs more time. This recording gives DeployTeach a clean instructor reference for later classroom speech analysis.</string>
+    <string name="instructor_setup_timer_ready">30 second setup</string>
+    <string name="instructor_setup_timer_format">%1$d seconds remaining</string>
+    <string name="instructor_setup_start">Start Voice Setup</string>
+    <string name="instructor_setup_cancel">Cancel Setup</string>
+    <string name="instructor_setup_saved">Instructor voice profile saved.</string>
+    <string name="instructor_setup_failed">Instructor voice setup failed.</string>
+    <string name="instructor_setup_permission_denied">Microphone permission is required for instructor setup.</string>
 
     <string name="library_title">Metadata</string>
     <string name="library_subtitle">Browse stored session summaries, interval payloads, and future merged tracking records.</string>

@@ -28,6 +28,8 @@ public final class SessionMetadata {
     private static final String KEY_SPEECH_INTERVALS = "speechIntervals";
     private static final String KEY_RAW_AUDIO_FILE_NAME = "rawAudioFileName";
     private static final String KEY_CONDITIONED_AUDIO_FILE_NAME = "conditionedAudioFileName";
+    private static final String KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME = "instructorProfileMetadataFileName";
+    private static final String KEY_INSTRUCTOR_PROFILE_AUDIO_FILE_NAME = "instructorProfileAudioFileName";
 
     private final String sessionId;
     private final String title;
@@ -45,6 +47,8 @@ public final class SessionMetadata {
     private final List<SessionSpeechInterval> speechIntervals;
     private final String rawAudioFileName;
     private final String conditionedAudioFileName;
+    private final String instructorProfileMetadataFileName;
+    private final String instructorProfileAudioFileName;
 
     public SessionMetadata(
             String sessionId,
@@ -62,7 +66,9 @@ public final class SessionMetadata {
             long longestSpeechMillis,
             List<SessionSpeechInterval> speechIntervals,
             String rawAudioFileName,
-            String conditionedAudioFileName
+            String conditionedAudioFileName,
+            String instructorProfileMetadataFileName,
+            String instructorProfileAudioFileName
     ) {
         this.sessionId = sessionId;
         this.title = title;
@@ -80,6 +86,8 @@ public final class SessionMetadata {
         this.speechIntervals = Collections.unmodifiableList(new ArrayList<>(speechIntervals));
         this.rawAudioFileName = rawAudioFileName;
         this.conditionedAudioFileName = conditionedAudioFileName;
+        this.instructorProfileMetadataFileName = instructorProfileMetadataFileName;
+        this.instructorProfileAudioFileName = instructorProfileAudioFileName;
     }
 
     public String getSessionId() {
@@ -146,6 +154,14 @@ public final class SessionMetadata {
         return conditionedAudioFileName;
     }
 
+    public String getInstructorProfileMetadataFileName() {
+        return instructorProfileMetadataFileName;
+    }
+
+    public String getInstructorProfileAudioFileName() {
+        return instructorProfileAudioFileName;
+    }
+
     public JSONObject toJson() throws JSONException {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(KEY_SESSION_ID, sessionId);
@@ -169,6 +185,8 @@ public final class SessionMetadata {
         jsonObject.put(KEY_SPEECH_INTERVALS, intervalsJson);
         jsonObject.put(KEY_RAW_AUDIO_FILE_NAME, rawAudioFileName);
         jsonObject.put(KEY_CONDITIONED_AUDIO_FILE_NAME, conditionedAudioFileName);
+        jsonObject.put(KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME, instructorProfileMetadataFileName);
+        jsonObject.put(KEY_INSTRUCTOR_PROFILE_AUDIO_FILE_NAME, instructorProfileAudioFileName);
         return jsonObject;
     }
 
@@ -202,7 +220,9 @@ public final class SessionMetadata {
                 jsonObject.optLong(KEY_LONGEST_SPEECH_MILLIS, 0L),
                 speechIntervals,
                 jsonObject.optString(KEY_RAW_AUDIO_FILE_NAME, null),
-                jsonObject.optString(KEY_CONDITIONED_AUDIO_FILE_NAME, null)
+                jsonObject.optString(KEY_CONDITIONED_AUDIO_FILE_NAME, null),
+                jsonObject.optString(KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME, null),
+                jsonObject.optString(KEY_INSTRUCTOR_PROFILE_AUDIO_FILE_NAME, null)
         );
     }
 }

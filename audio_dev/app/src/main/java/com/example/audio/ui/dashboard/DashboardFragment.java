@@ -33,9 +33,15 @@ public class DashboardFragment extends Fragment {
     private TextView speechMetricValue;
     private TextView disturbanceMetricValue;
     private TextView reverbMetricValue;
+    private TextView instructorSetupStatusText;
+    private TextView instructorSetupTimerText;
     private MaterialCardView heroCard;
+    private MaterialCardView instructorSetupCard;
+    private View dashboardMetricsRow;
     private MaterialButton startButton;
     private MaterialButton stopButton;
+    private MaterialButton startInstructorSetupButton;
+    private MaterialButton cancelInstructorSetupButton;
 
     public DashboardFragment() {
         super(R.layout.fragment_dashboard);
@@ -57,6 +63,8 @@ public class DashboardFragment extends Fragment {
         sessionViewModel = new ViewModelProvider(requireActivity()).get(SessionViewModel.class);
 
         heroCard = view.findViewById(R.id.dashboard_hero_card);
+        instructorSetupCard = view.findViewById(R.id.instructor_setup_card);
+        dashboardMetricsRow = view.findViewById(R.id.dashboard_metrics_row);
         heroLabelText = view.findViewById(R.id.hero_status_text);
         sessionStatusValue = view.findViewById(R.id.session_status_value);
         speechStatusValue = view.findViewById(R.id.speech_status_value);
@@ -66,8 +74,12 @@ public class DashboardFragment extends Fragment {
         speechMetricValue = view.findViewById(R.id.speech_metric_value);
         disturbanceMetricValue = view.findViewById(R.id.disturbance_metric_value);
         reverbMetricValue = view.findViewById(R.id.reverb_metric_value);
+        instructorSetupStatusText = view.findViewById(R.id.instructor_setup_status_text);
+        instructorSetupTimerText = view.findViewById(R.id.instructor_setup_timer_text);
         startButton = view.findViewById(R.id.start_tracking_button);
         stopButton = view.findViewById(R.id.stop_tracking_button);
+        startInstructorSetupButton = view.findViewById(R.id.start_instructor_setup_button);
+        cancelInstructorSetupButton = view.findViewById(R.id.cancel_instructor_setup_button);
 
         startButton.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
@@ -77,6 +89,16 @@ public class DashboardFragment extends Fragment {
         stopButton.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).stopTracking();
+            }
+        });
+        startInstructorSetupButton.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).requestAudioAndStartInstructorSetup();
+            }
+        });
+        cancelInstructorSetupButton.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).cancelInstructorSetup();
             }
         });
 
@@ -99,12 +121,34 @@ public class DashboardFragment extends Fragment {
         }
 
         boolean running = sessionViewModel.isSessionRunning();
+        boolean instructorProfileReady = sessionViewModel.isInstructorProfileReady();
+        boolean enrollmentRunning = sessionViewModel.isInstructorEnrollmentRunning();
         SessionSummary sessionSummary = sessionViewModel.getSessionSummary();
         int speechPercent = sessionSummary == null
                 ? 0
                 : Math.round(sessionSummary.getSpeakingRatio() * 100.0f);
         int disturbanceCount = sessionSummary == null ? 0 : sessionSummary.getDisturbanceCount();
         String reverbLabel = sessionViewModel.getReverbLevel().name().toLowerCase(Locale.US);
+
+        instructorSetupCard.setVisibility(instructorProfileReady ? View.GONE : View.VISIBLE);
+        heroCard.setVisibility(instructorProfileReady ? View.VISIBLE : View.GONE);
+        dashboardMetricsRow.setVisibility(instructorProfileReady ? View.VISIBLE : View.GONE);
+        if (!instructorProfileReady) {
+            instructorSetupStatusText.setText(enrollmentRunning
+                    ? R.string.instructor_setup_recording
+                    : R.string.instructor_setup_required);
+            long remainingSeconds = Math.max(
+                    0L,
+                    (sessionViewModel.getInstructorEnrollmentRemainingMillis() + 999L) / 1000L
+            );
+            instructorSetupTimerText.setText(enrollmentRunning
+                    ? getString(R.string.instructor_setup_timer_format, remainingSeconds)
+                    : getString(R.string.instructor_setup_timer_ready));
+            startInstructorSetupButton.setEnabled(!enrollmentRunning);
+            startInstructorSetupButton.setAlpha(enrollmentRunning ? 0.55f : 1.0f);
+            cancelInstructorSetupButton.setEnabled(enrollmentRunning);
+            cancelInstructorSetupButton.setAlpha(enrollmentRunning ? 1.0f : 0.55f);
+        }
 
         heroLabelText.setText(running
                 ? R.string.dashboard_status_running
@@ -126,9 +170,9 @@ public class DashboardFragment extends Fragment {
                 getString(R.string.dashboard_metric_reverb_value, capitalize(reverbLabel))
         );
 
-        startButton.setEnabled(!running);
+        startButton.setEnabled(!running && instructorProfileReady);
         stopButton.setEnabled(running);
-        startButton.setAlpha(running ? 0.55f : 1.0f);
+        startButton.setAlpha(running || !instructorProfileReady ? 0.55f : 1.0f);
         stopButton.setAlpha(running ? 1.0f : 0.7f);
     }
 
