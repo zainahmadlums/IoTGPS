@@ -12,7 +12,7 @@ import static org.junit.Assert.assertEquals;
 public class SpeakerRoleClassifierTest {
 
     @Test
-    public void warmupSpeechStartsAsInstructor() {
+    public void warmupSpeechDoesNotAssumeInstructor() {
         SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(buildInstructorProfile());
 
         SpeakerRole role = classifier.classify(
@@ -20,7 +20,7 @@ public class SpeakerRoleClassifierTest {
                 new VadResult(0L, true, 0.80f)
         );
 
-        assertEquals(SpeakerRole.INSTRUCTOR, role);
+        assertEquals(SpeakerRole.STUDENT, role);
     }
 
     @Test
