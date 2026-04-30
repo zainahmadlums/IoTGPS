@@ -5,6 +5,9 @@ public enum SessionState {
     STARTING,
     RUNNING,
     SPEECH,
+    INSTRUCTOR,
+    STUDENT,
+    BOTH,
     SILENCE,
     STOPPED
 }

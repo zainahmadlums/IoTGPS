@@ -2,6 +2,7 @@ package com.example.audio.ui;
 
 import androidx.lifecycle.ViewModel;
 
+import com.example.audio.data.SpeakerRole;
 import com.example.audio.pipeline.SessionSummary;
 import com.example.audio.reverb.ReverbResult;
 
@@ -26,6 +27,28 @@ public class SessionViewModel extends ViewModel {
 
     public void setSpeechActive(boolean speechActive) {
         this.speechState = speechActive ? SessionState.SPEECH : SessionState.SILENCE;
+    }
+
+    public void setSpeakerRole(SpeakerRole speakerRole) {
+        if (speakerRole == null) {
+            speechState = SessionState.SILENCE;
+            return;
+        }
+        switch (speakerRole) {
+            case INSTRUCTOR:
+                speechState = SessionState.INSTRUCTOR;
+                break;
+            case STUDENT:
+                speechState = SessionState.STUDENT;
+                break;
+            case BOTH:
+                speechState = SessionState.BOTH;
+                break;
+            case SILENCE:
+            default:
+                speechState = SessionState.SILENCE;
+                break;
+        }
     }
 
     public SessionState getSpeechState() {

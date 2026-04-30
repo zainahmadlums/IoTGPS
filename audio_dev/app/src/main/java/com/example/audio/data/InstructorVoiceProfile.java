@@ -1,6 +1,7 @@
 package com.example.audio.data;
 
 import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public final class InstructorVoiceProfile {
@@ -22,6 +23,8 @@ public final class InstructorVoiceProfile {
     private static final String KEY_AVERAGE_ZCR = "averageZcr";
     private static final String KEY_AVERAGE_LOW_BAND_RATIO = "averageLowBandRatio";
     private static final String KEY_AVERAGE_HIGH_BAND_RATIO = "averageHighBandRatio";
+    private static final String KEY_EMBEDDING_VERSION = "embeddingVersion";
+    private static final String KEY_SPEAKER_EMBEDDING = "speakerEmbedding";
 
     private final String profileId;
     private final String title;
@@ -40,6 +43,8 @@ public final class InstructorVoiceProfile {
     private final float averageZcr;
     private final float averageLowBandRatio;
     private final float averageHighBandRatio;
+    private final int embeddingVersion;
+    private final float[] speakerEmbedding;
 
     public InstructorVoiceProfile(
             String profileId,
@@ -58,7 +63,9 @@ public final class InstructorVoiceProfile {
             float averageRms,
             float averageZcr,
             float averageLowBandRatio,
-            float averageHighBandRatio
+            float averageHighBandRatio,
+            int embeddingVersion,
+            float[] speakerEmbedding
     ) {
         this.profileId = profileId;
         this.title = title;
@@ -77,6 +84,8 @@ public final class InstructorVoiceProfile {
         this.averageZcr = averageZcr;
         this.averageLowBandRatio = averageLowBandRatio;
         this.averageHighBandRatio = averageHighBandRatio;
+        this.embeddingVersion = embeddingVersion;
+        this.speakerEmbedding = speakerEmbedding == null ? new float[0] : speakerEmbedding.clone();
     }
 
     public String getProfileId() {
@@ -147,6 +156,14 @@ public final class InstructorVoiceProfile {
         return averageHighBandRatio;
     }
 
+    public int getEmbeddingVersion() {
+        return embeddingVersion;
+    }
+
+    public float[] getSpeakerEmbedding() {
+        return speakerEmbedding.clone();
+    }
+
     public JSONObject toJson() throws JSONException {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(KEY_PROFILE_ID, profileId);
@@ -166,6 +183,12 @@ public final class InstructorVoiceProfile {
         jsonObject.put(KEY_AVERAGE_ZCR, averageZcr);
         jsonObject.put(KEY_AVERAGE_LOW_BAND_RATIO, averageLowBandRatio);
         jsonObject.put(KEY_AVERAGE_HIGH_BAND_RATIO, averageHighBandRatio);
+        jsonObject.put(KEY_EMBEDDING_VERSION, embeddingVersion);
+        JSONArray embeddingJson = new JSONArray();
+        for (float value : speakerEmbedding) {
+            embeddingJson.put(value);
+        }
+        jsonObject.put(KEY_SPEAKER_EMBEDDING, embeddingJson);
         return jsonObject;
     }
 
@@ -187,7 +210,20 @@ public final class InstructorVoiceProfile {
                 (float) jsonObject.optDouble(KEY_AVERAGE_RMS, 0.0d),
                 (float) jsonObject.optDouble(KEY_AVERAGE_ZCR, 0.0d),
                 (float) jsonObject.optDouble(KEY_AVERAGE_LOW_BAND_RATIO, 0.0d),
-                (float) jsonObject.optDouble(KEY_AVERAGE_HIGH_BAND_RATIO, 0.0d)
+                (float) jsonObject.optDouble(KEY_AVERAGE_HIGH_BAND_RATIO, 0.0d),
+                jsonObject.optInt(KEY_EMBEDDING_VERSION, 0),
+                readEmbedding(jsonObject.optJSONArray(KEY_SPEAKER_EMBEDDING))
         );
+    }
+
+    private static float[] readEmbedding(JSONArray jsonArray) {
+        if (jsonArray == null) {
+            return new float[0];
+        }
+        float[] values = new float[jsonArray.length()];
+        for (int index = 0; index < jsonArray.length(); index++) {
+            values[index] = (float) jsonArray.optDouble(index, 0.0d);
+        }
+        return values;
     }
 }

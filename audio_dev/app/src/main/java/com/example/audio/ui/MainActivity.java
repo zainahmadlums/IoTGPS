@@ -146,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
     @Override
     public void onSpeechStateChanged(SpeechEvent speechEvent) {
         sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
-        sessionViewModel.setSpeechActive(speechEvent.isSpeech());
+        sessionViewModel.setSpeakerRole(speechEvent.getSpeakerRole());
         sessionViewModel.setDisturbanceActive(speechEvent.isDisturbance());
         sessionViewModel.setReverbLevel(speechEvent.getReverbLevel());
         sessionViewModel.setSessionSummary(SessionRepository.getInstance().getSessionSummary());
@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
         SpeechEvent latestSpeechEvent = SessionRepository.getInstance().getLatestSpeechEvent();
         if (latestSpeechEvent != null) {
-            sessionViewModel.setSpeechActive(latestSpeechEvent.isSpeech());
+            sessionViewModel.setSpeakerRole(latestSpeechEvent.getSpeakerRole());
             sessionViewModel.setDisturbanceActive(latestSpeechEvent.isDisturbance());
             sessionViewModel.setReverbLevel(latestSpeechEvent.getReverbLevel());
         }
@@ -358,7 +358,9 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
                     instructorEnrollmentStats.getAverageRms(),
                     instructorEnrollmentStats.getAverageZcr(),
                     instructorEnrollmentStats.getAverageLowBandRatio(),
-                    instructorEnrollmentStats.getAverageHighBandRatio()
+                    instructorEnrollmentStats.getAverageHighBandRatio(),
+                    instructorEnrollmentStats.getEmbeddingVersion(),
+                    instructorEnrollmentStats.getEmbedding()
             );
             InstructorVoiceProfileStore.getInstance().writeProfile(this, profile);
             Toast.makeText(this, R.string.instructor_setup_saved, Toast.LENGTH_SHORT).show();

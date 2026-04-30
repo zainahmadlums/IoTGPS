@@ -1,7 +1,12 @@
 package com.example.audio.data;
 
+import com.example.audio.speaker.SpeakerEmbeddingExtractor;
+
 public final class InstructorVoiceProfileStats {
 
+    private final SpeakerEmbeddingExtractor embeddingExtractor = new SpeakerEmbeddingExtractor();
+    private final SpeakerEmbeddingExtractor.EmbeddingAccumulator embeddingAccumulator =
+            new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
     private int frameCount;
     private double rmsSum;
     private double zcrSum;
@@ -38,6 +43,7 @@ public final class InstructorVoiceProfileStats {
             lowBandRatioSum += lowEnergy / energy;
             highBandRatioSum += highEnergy / energy;
         }
+        embeddingAccumulator.add(embeddingExtractor.extractFrameFeatures(frame));
         frameCount++;
     }
 
@@ -59,5 +65,13 @@ public final class InstructorVoiceProfileStats {
 
     public float getAverageHighBandRatio() {
         return frameCount == 0 ? 0.0f : (float) (highBandRatioSum / frameCount);
+    }
+
+    public int getEmbeddingVersion() {
+        return SpeakerEmbeddingExtractor.EMBEDDING_VERSION;
+    }
+
+    public float[] getEmbedding() {
+        return embeddingExtractor.buildEmbedding(embeddingAccumulator);
     }
 }

@@ -201,6 +201,12 @@ public class DashboardFragment extends Fragment {
 
     private String toDisplayLabel(SessionState sessionState) {
         switch (sessionState) {
+            case INSTRUCTOR:
+                return getString(R.string.speech_state_instructor);
+            case STUDENT:
+                return getString(R.string.speech_state_student);
+            case BOTH:
+                return getString(R.string.speech_state_both);
             case SPEECH:
                 return getString(R.string.speech_state_speech);
             case SILENCE:

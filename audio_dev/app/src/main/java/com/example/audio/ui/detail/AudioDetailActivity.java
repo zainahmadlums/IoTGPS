@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -159,6 +160,7 @@ public class AudioDetailActivity extends AppCompatActivity {
         TextView disturbanceText = findViewById(R.id.detail_disturbance_value);
         TextView reverbText = findViewById(R.id.detail_reverb_value);
         TextView timelineBodyText = findViewById(R.id.detail_timeline_body);
+        TextView timelineLegendText = findViewById(R.id.detail_timeline_legend);
         TextView startTimeText = findViewById(R.id.detail_start_time);
         TextView endTimeText = findViewById(R.id.detail_end_time);
         TextView totalSpeechText = findViewById(R.id.detail_total_speech_value);
@@ -178,6 +180,7 @@ public class AudioDetailActivity extends AppCompatActivity {
             disturbanceText.setText("0");
             reverbText.setText("LOW");
             timelineBodyText.setText(R.string.detail_error_body);
+            timelineLegendText.setVisibility(View.GONE);
             startTimeText.setText(R.string.detail_unknown_time);
             endTimeText.setText(R.string.detail_unknown_time);
             totalSpeechText.setText(getString(R.string.detail_total_speech_format, getString(R.string.detail_unknown_time)));
@@ -223,6 +226,7 @@ public class AudioDetailActivity extends AppCompatActivity {
 
         if (sessionMetadata == null) {
             timelineBodyText.setText(R.string.detail_error_body);
+            timelineLegendText.setVisibility(View.GONE);
             totalSpeechText.setText(getString(R.string.detail_total_speech_format, getString(R.string.detail_unknown_time)));
             totalSilenceText.setText(getString(R.string.detail_total_silence_format, getString(R.string.detail_unknown_time)));
             intervalCountText.setText(getString(R.string.detail_interval_count_format, 0));
@@ -231,11 +235,22 @@ public class AudioDetailActivity extends AppCompatActivity {
             timelineView.setData(java.util.Collections.emptyList(), 1L);
             actionHintText.setText(R.string.detail_action_hint_playback_unavailable);
         } else {
-            timelineBodyText.setText(getString(
-                    R.string.detail_timeline_body_format,
-                    sessionMetadata.getIntervalCount(),
-                    Math.round(sessionMetadata.getSpeakingRatio() * 100.0f)
-            ));
+            if (sessionMetadata.getRoleIntervals().isEmpty()) {
+                timelineBodyText.setText(getString(
+                        R.string.detail_timeline_body_format,
+                        sessionMetadata.getIntervalCount(),
+                        Math.round(sessionMetadata.getSpeakingRatio() * 100.0f)
+                ));
+                timelineLegendText.setVisibility(View.GONE);
+            } else {
+                timelineBodyText.setText(getString(
+                        R.string.detail_role_timeline_body_format,
+                        AudioSessionFormatter.formatDuration(sessionMetadata.getTotalInstructorMillis()),
+                        AudioSessionFormatter.formatDuration(sessionMetadata.getTotalStudentMillis()),
+                        AudioSessionFormatter.formatDuration(sessionMetadata.getTotalBothMillis())
+                ));
+                timelineLegendText.setVisibility(View.VISIBLE);
+            }
             totalSpeechText.setText(getString(
                     R.string.detail_total_speech_format,
                     AudioSessionFormatter.formatDuration(sessionMetadata.getTotalSpeechMillis())

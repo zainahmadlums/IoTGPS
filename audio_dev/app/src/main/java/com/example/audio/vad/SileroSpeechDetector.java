@@ -24,6 +24,8 @@ public class SileroSpeechDetector implements SpeechDetector {
             (CONFIGURED_FRAME_SIZE_SAMPLES * 1000) / AudioConfig.DEFAULT_SAMPLE_RATE_HZ;
     private static final long RESET_AFTER_SILENCE_MS = 1500L;
     private static final long RESET_RETRY_AFTER_SILENCE_MS = 5000L;
+    private static final float VAD_TARGET_RMS = 0.12f;
+    private static final float VAD_MIN_ATTENUATION = 0.10f;
 
     private final Context applicationContext;
     private final PocketNoiseReducer pocketNoiseReducer = new PocketNoiseReducer();
@@ -53,12 +55,17 @@ public class SileroSpeechDetector implements SpeechDetector {
         float zcr = zcrCalculator.extract(frame);
         PocketNoiseReducer.Result reductionResult = pocketNoiseReducer.condition(frame, spectralFlux, zcr);
         short[] conditionedFrame = reductionResult.getConditionedFrame();
-        boolean rawSpeech = rawVadDelegate.isSpeech(frame);
-        boolean conditionedSpeech = conditionedVadDelegate.isSpeech(conditionedFrame);
+        short[] rawVadFrame = normalizeForVad(frame, reductionResult.getRawRms());
+        short[] conditionedVadFrame = normalizeForVad(conditionedFrame, reductionResult.getConditionedRms());
+        boolean rawSpeech = rawVadDelegate.isSpeech(rawVadFrame);
+        boolean conditionedSpeech = conditionedVadDelegate.isSpeech(conditionedVadFrame);
         if (reductionResult.shouldRejectForVad()
                 && reductionResult.getSpeechScore() < 0.64f
                 && reductionResult.getVoicingScore() < 0.70f) {
             conditionedSpeech = false;
+        }
+        if (!conditionedSpeech && shouldUseVoicedFallback(reductionResult)) {
+            conditionedSpeech = true;
         }
 
         SpeechResilienceTracker.Decision decision = speechResilienceTracker.refine(
@@ -173,6 +180,8 @@ public class SileroSpeechDetector implements SpeechDetector {
                         + rawSpeech
                         + ", conditionedSpeech="
                         + conditionedSpeech
+                        + ", vadGain="
+                        + computeVadGain(reductionResult.getRawRms())
                         + ", finalSpeech="
                         + decision.isSpeech()
                         + ", confidence="
@@ -188,6 +197,45 @@ public class SileroSpeechDetector implements SpeechDetector {
             energy += (long) sample * sample;
         }
         return (int) Math.sqrt((double) energy / frame.length);
+    }
+
+    private short[] normalizeForVad(short[] frame, float rms) {
+        if (frame == null || frame.length == 0 || rms <= VAD_TARGET_RMS) {
+            return frame;
+        }
+
+        float gain = computeVadGain(rms);
+        short[] normalizedFrame = new short[frame.length];
+        for (int index = 0; index < frame.length; index++) {
+            normalizedFrame[index] = saturate(Math.round(frame[index] * gain));
+        }
+        return normalizedFrame;
+    }
+
+    private float computeVadGain(float rms) {
+        if (rms <= 0.0f) {
+            return 1.0f;
+        }
+        return Math.max(VAD_MIN_ATTENUATION, Math.min(1.0f, VAD_TARGET_RMS / rms));
+    }
+
+    private boolean shouldUseVoicedFallback(PocketNoiseReducer.Result reductionResult) {
+        return !reductionResult.shouldRejectForVad()
+                && reductionResult.getRawRms() >= 0.020f
+                && reductionResult.getSpeechScore() >= 0.56f
+                && reductionResult.getVoicingScore() >= 0.74f
+                && reductionResult.getZcr() <= 0.08f
+                && reductionResult.getRubbingScore() <= 0.62f;
+    }
+
+    private short saturate(int sample) {
+        if (sample > Short.MAX_VALUE) {
+            return Short.MAX_VALUE;
+        }
+        if (sample < Short.MIN_VALUE) {
+            return Short.MIN_VALUE;
+        }
+        return (short) sample;
     }
 
     private void updateSilenceRecovery(boolean isSpeech) {

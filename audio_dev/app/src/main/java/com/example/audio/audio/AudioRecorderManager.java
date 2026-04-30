@@ -19,8 +19,8 @@ public class AudioRecorderManager {
     private static final long READ_ERROR_BACKOFF_MILLIS = 50L;
     private static final long ZERO_FRAME_RECOVERY_MILLIS = 2000L;
     private static final int[] AUDIO_SOURCE_PRIORITY = new int[] {
-            MediaRecorder.AudioSource.MIC,
-            MediaRecorder.AudioSource.VOICE_RECOGNITION
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC
     };
     private static final int MAX_ZERO_ROUTE_RECOVERIES = 3;
     private static final int DEBUG_READ_LOG_LIMIT = 6;
