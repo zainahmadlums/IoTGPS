@@ -39,7 +39,6 @@ public final class SpeakerRoleClassifier {
     private final List<SpeakerPrototype> studentPrototypes = new ArrayList<>();
     private final InstructorVoiceProfile instructorVoiceProfile;
     private final float[] instructorEmbedding;
-    private final SpeakerRoleModel speakerRoleModel;
     private SpeakerRole lastStableSpeechRole = SpeakerRole.STUDENT;
     private SpeakerRole pendingRole = SpeakerRole.SILENCE;
     private int pendingRoleFrames;
@@ -47,15 +46,10 @@ public final class SpeakerRoleClassifier {
     private long lastLogTimestampMillis;
 
     public SpeakerRoleClassifier(InstructorVoiceProfile instructorVoiceProfile) {
-        this(instructorVoiceProfile, null);
-    }
-
-    public SpeakerRoleClassifier(InstructorVoiceProfile instructorVoiceProfile, SpeakerRoleModel speakerRoleModel) {
         this.instructorVoiceProfile = instructorVoiceProfile;
         this.instructorEmbedding = instructorVoiceProfile == null
                 ? new float[0]
                 : instructorVoiceProfile.getSpeakerEmbedding();
-        this.speakerRoleModel = speakerRoleModel;
     }
 
     public SpeakerRole classify(short[] frame, VadResult vadResult) {
@@ -104,15 +98,6 @@ public final class SpeakerRoleClassifier {
         SpeakerRole rawRole = classifyEmbedding(
                 instructorSimilarity,
                 studentMatch.similarity,
-                buildModelFeatures(
-                        instructorSimilarity,
-                        studentMatch.similarity,
-                        features,
-                        vadConfidence,
-                        overlapEnergyJump,
-                        overlapBandShift,
-                        similarityUnstable
-                ),
                 strongSpeech,
                 overlapEnergyJump,
                 overlapBandShift,
@@ -140,16 +125,11 @@ public final class SpeakerRoleClassifier {
     private SpeakerRole classifyEmbedding(
             float instructorSimilarity,
             float studentSimilarity,
-            float[] modelFeatures,
             boolean strongSpeech,
             boolean overlapEnergyJump,
             boolean overlapBandShift,
             boolean similarityUnstable
     ) {
-        if (speakerRoleModel != null) {
-            return speakerRoleModel.predict(modelFeatures);
-        }
-
         boolean knownStudent = studentSimilarity >= STUDENT_CLUSTER_THRESHOLD;
         boolean instructorDominant = instructorSimilarity >= INSTRUCTOR_ENTER_THRESHOLD
                 && instructorSimilarity >= studentSimilarity + SPEAKER_MARGIN;
@@ -172,41 +152,6 @@ public final class SpeakerRoleClassifier {
             return SpeakerRole.INSTRUCTOR;
         }
         return SpeakerRole.STUDENT;
-    }
-
-    private float[] buildModelFeatures(
-            float instructorSimilarity,
-            float studentSimilarity,
-            FrameVoiceFeatures features,
-            float vadConfidence,
-            boolean overlapEnergyJump,
-            boolean overlapBandShift,
-            boolean similarityUnstable
-    ) {
-        float instructorRms = instructorVoiceProfile == null ? 0.0f : instructorVoiceProfile.getAverageRms();
-        float lowBandDelta = instructorVoiceProfile == null
-                ? 0.0f
-                : Math.abs(features.lowBandRatio - instructorVoiceProfile.getAverageLowBandRatio());
-        float highBandDelta = instructorVoiceProfile == null
-                ? 0.0f
-                : Math.abs(features.highBandRatio - instructorVoiceProfile.getAverageHighBandRatio());
-        return new float[]{
-                instructorSimilarity,
-                studentSimilarity,
-                instructorSimilarity - studentSimilarity,
-                features.rms,
-                features.zcr,
-                features.lowBandRatio,
-                features.highBandRatio,
-                vadConfidence,
-                instructorRms > 0.0f ? features.rms / instructorRms : 0.0f,
-                lowBandDelta,
-                highBandDelta,
-                overlapEnergyJump ? 1.0f : 0.0f,
-                overlapBandShift ? 1.0f : 0.0f,
-                similarityUnstable ? 1.0f : 0.0f,
-                studentPrototypes.size()
-        };
     }
 
     private SpeakerRole smoothRole(SpeakerRole rawRole) {
