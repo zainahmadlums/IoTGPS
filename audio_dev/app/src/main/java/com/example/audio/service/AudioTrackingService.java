@@ -35,6 +35,7 @@ import com.example.audio.pipeline.FrameProcessingDiagnostics;
 import com.example.audio.pipeline.SessionSummary;
 import com.example.audio.reverb.EnergyDecayReverbEstimator;
 import com.example.audio.speaker.SpeakerRoleClassifier;
+import com.example.audio.speaker.SpeakerRoleModel;
 import com.example.audio.util.Logger;
 import com.example.audio.vad.SpeechDetectorFactory;
 
@@ -124,7 +125,10 @@ public class AudioTrackingService extends Service {
                     SpeechDetectorFactory.create(this),
                     new EnergySpikeDetector(),
                     new EnergyDecayReverbEstimator(),
-                    new SpeakerRoleClassifier(InstructorVoiceProfileStore.getInstance().readProfile(this))
+                    new SpeakerRoleClassifier(
+                            InstructorVoiceProfileStore.getInstance().readProfile(this),
+                            SpeakerRoleModel.load(this)
+                    )
             );
         }
         if (audioRecorderManager == null) {
