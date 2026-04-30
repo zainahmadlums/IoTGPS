@@ -13,3 +13,22 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Generated evaluation data and local audio clips
+*.json
+*.jsonl
+*.wav
+*.opus
+*.ogg
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.caf
+*.aif
+*.aiff
+*.mp4
+generated_dataset/audio/
+generated_dataset/truth/
+generated_dataset/predictions/
+generated_dataset/normalized_sources/

@@ -5,26 +5,43 @@ import com.example.audio.data.SpeakerRole;
 import com.example.audio.util.Logger;
 import com.example.audio.vad.VadResult;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class SpeakerRoleClassifier {
 
     private static final String TAG = "SpeakerRoleClassifier";
-    private static final int ROLLING_WINDOW_FRAMES = 10;
-    private static final int MIN_EMBEDDING_FRAMES = 3;
-    private static final float INSTRUCTOR_THRESHOLD = 0.86f;
-    private static final float BOTH_MIN_THRESHOLD = 0.55f;
-    private static final float BOTH_MAX_THRESHOLD = 0.86f;
+    private static final int SHORT_WINDOW_FRAMES = 8;
+    private static final int IDENTITY_WINDOW_FRAMES = 32;
+    private static final int MIN_EMBEDDING_FRAMES = 8;
+    private static final int MAX_STUDENT_CLUSTERS = 6;
+    private static final int MIN_STUDENT_CLUSTER_FRAMES = 2;
+    private static final float INSTRUCTOR_ENTER_THRESHOLD = 0.93f;
+    private static final float INSTRUCTOR_STAY_THRESHOLD = 0.90f;
+    private static final float INSTRUCTOR_STRICT_THRESHOLD = 0.96f;
+    private static final float STUDENT_CLUSTER_THRESHOLD = 0.88f;
+    private static final float STUDENT_CLUSTER_UPDATE_THRESHOLD = 0.82f;
+    private static final float SPEAKER_MARGIN = 0.035f;
+    private static final float BOTH_MIN_INSTRUCTOR_SIMILARITY = 0.78f;
+    private static final float BOTH_MIN_STUDENT_SIMILARITY = 0.78f;
     private static final float MIN_ROLE_RMS = 0.012f;
     private static final float MIN_ROLE_CONFIDENCE = 0.42f;
-    private static final float OVERLAP_RMS_JUMP = 1.65f;
+    private static final float OVERLAP_RMS_JUMP = 1.45f;
     private static final float OVERLAP_BAND_SHIFT = 0.22f;
+    private static final int ROLE_SMOOTHING_FRAMES = 3;
     private static final long LOG_INTERVAL_MILLIS = 1000L;
 
     private final SpeakerEmbeddingExtractor embeddingExtractor = new SpeakerEmbeddingExtractor();
-    private final SpeakerEmbeddingExtractor.RollingWindow rollingWindow =
-            embeddingExtractor.new RollingWindow(ROLLING_WINDOW_FRAMES);
+    private final SpeakerEmbeddingExtractor.RollingWindow shortWindow =
+            embeddingExtractor.new RollingWindow(SHORT_WINDOW_FRAMES);
+    private final SpeakerEmbeddingExtractor.RollingWindow identityWindow =
+            embeddingExtractor.new RollingWindow(IDENTITY_WINDOW_FRAMES);
+    private final List<SpeakerPrototype> studentPrototypes = new ArrayList<>();
     private final InstructorVoiceProfile instructorVoiceProfile;
     private final float[] instructorEmbedding;
-    private SpeakerRole lastStableSpeechRole = SpeakerRole.INSTRUCTOR;
+    private SpeakerRole lastStableSpeechRole = SpeakerRole.STUDENT;
+    private SpeakerRole pendingRole = SpeakerRole.SILENCE;
+    private int pendingRoleFrames;
     private float previousInstructorSimilarity = -1.0f;
     private long lastLogTimestampMillis;
 
@@ -37,8 +54,11 @@ public final class SpeakerRoleClassifier {
 
     public SpeakerRole classify(short[] frame, VadResult vadResult) {
         if (vadResult == null || !vadResult.isSpeech()) {
-            rollingWindow.clear();
+            shortWindow.clear();
+            identityWindow.clear();
             previousInstructorSimilarity = -1.0f;
+            pendingRole = SpeakerRole.SILENCE;
+            pendingRoleFrames = 0;
             return SpeakerRole.SILENCE;
         }
         if (instructorVoiceProfile == null
@@ -51,21 +71,20 @@ public final class SpeakerRoleClassifier {
         FrameVoiceFeatures features = extractFeatures(frame);
         float vadConfidence = vadResult.getConfidence() == null ? 0.0f : vadResult.getConfidence();
         if (features.rms < MIN_ROLE_RMS || vadConfidence < MIN_ROLE_CONFIDENCE) {
-            rollingWindow.clear();
+            shortWindow.clear();
+            identityWindow.clear();
             previousInstructorSimilarity = -1.0f;
-            logDecision(vadResult, SpeakerRole.SILENCE, 0.0f, features, "weak-speech");
+            logDecision(vadResult, SpeakerRole.SILENCE, 0.0f, 0.0f, features, "weak-speech");
             return SpeakerRole.SILENCE;
         }
 
-        rollingWindow.add(frame);
-        if (rollingWindow.size() < MIN_EMBEDDING_FRAMES) {
-            logDecision(vadResult, lastStableSpeechRole, 0.0f, features, "warmup");
-            return lastStableSpeechRole;
-        }
-
-        float[] currentEmbedding = rollingWindow.buildEmbedding();
+        shortWindow.add(frame);
+        identityWindow.add(frame);
+        float[] currentEmbedding = identityWindow.size() >= MIN_EMBEDDING_FRAMES
+                ? identityWindow.buildEmbedding()
+                : shortWindow.buildEmbedding();
         float instructorSimilarity = embeddingExtractor.cosineSimilarity(currentEmbedding, instructorEmbedding);
-        boolean mixedEnergy = Math.abs(features.rms - instructorVoiceProfile.getAverageRms()) > 0.085f;
+        StudentMatch studentMatch = findBestStudentMatch(currentEmbedding);
         boolean strongSpeech = vadResult.getConfidence() != null && vadResult.getConfidence() >= 0.72f;
         boolean overlapEnergyJump = instructorVoiceProfile.getAverageRms() > 0.0f
                 && features.rms >= instructorVoiceProfile.getAverageRms() * OVERLAP_RMS_JUMP;
@@ -76,28 +95,113 @@ public final class SpeakerRoleClassifier {
                 && Math.abs(instructorSimilarity - previousInstructorSimilarity) >= 0.16f;
         previousInstructorSimilarity = instructorSimilarity;
 
-        if (strongSpeech
-                && instructorSimilarity >= BOTH_MIN_THRESHOLD
-                && instructorSimilarity < BOTH_MAX_THRESHOLD
-                && (mixedEnergy || overlapEnergyJump || overlapBandShift || similarityUnstable)) {
-            lastStableSpeechRole = SpeakerRole.BOTH;
-            logDecision(vadResult, SpeakerRole.BOTH, instructorSimilarity, features, "mixed");
+        SpeakerRole rawRole = classifyEmbedding(
+                instructorSimilarity,
+                studentMatch.similarity,
+                strongSpeech,
+                overlapEnergyJump,
+                overlapBandShift,
+                similarityUnstable
+        );
+        if (rawRole == SpeakerRole.STUDENT) {
+            updateStudentPrototypes(currentEmbedding, studentMatch);
+        }
+
+        SpeakerRole smoothedRole = smoothRole(rawRole);
+        if (smoothedRole != SpeakerRole.SILENCE) {
+            lastStableSpeechRole = smoothedRole;
+        }
+        logDecision(
+                vadResult,
+                smoothedRole,
+                instructorSimilarity,
+                studentMatch.similarity,
+                features,
+                rawRole == smoothedRole ? "diarized" : "smoothing"
+        );
+        return smoothedRole;
+    }
+
+    private SpeakerRole classifyEmbedding(
+            float instructorSimilarity,
+            float studentSimilarity,
+            boolean strongSpeech,
+            boolean overlapEnergyJump,
+            boolean overlapBandShift,
+            boolean similarityUnstable
+    ) {
+        boolean knownStudent = studentSimilarity >= STUDENT_CLUSTER_THRESHOLD;
+        boolean instructorDominant = instructorSimilarity >= INSTRUCTOR_ENTER_THRESHOLD
+                && instructorSimilarity >= studentSimilarity + SPEAKER_MARGIN;
+        boolean instructorSticky = lastStableSpeechRole == SpeakerRole.INSTRUCTOR
+                && instructorSimilarity >= INSTRUCTOR_STAY_THRESHOLD
+                && instructorSimilarity >= studentSimilarity;
+        boolean overlapCandidate = strongSpeech
+                && instructorSimilarity >= BOTH_MIN_INSTRUCTOR_SIMILARITY
+                && studentSimilarity >= BOTH_MIN_STUDENT_SIMILARITY
+                && Math.abs(instructorSimilarity - studentSimilarity) <= 0.10f
+                && (overlapEnergyJump || overlapBandShift || similarityUnstable);
+
+        if (overlapCandidate) {
             return SpeakerRole.BOTH;
         }
-        if (instructorSimilarity >= INSTRUCTOR_THRESHOLD) {
-            lastStableSpeechRole = SpeakerRole.INSTRUCTOR;
-            logDecision(vadResult, SpeakerRole.INSTRUCTOR, instructorSimilarity, features, "match");
+        if (knownStudent && studentSimilarity >= instructorSimilarity - SPEAKER_MARGIN) {
+            return SpeakerRole.STUDENT;
+        }
+        if (instructorDominant || instructorSticky || instructorSimilarity >= INSTRUCTOR_STRICT_THRESHOLD) {
             return SpeakerRole.INSTRUCTOR;
         }
-        lastStableSpeechRole = SpeakerRole.STUDENT;
-        logDecision(vadResult, SpeakerRole.STUDENT, instructorSimilarity, features, "mismatch");
         return SpeakerRole.STUDENT;
+    }
+
+    private SpeakerRole smoothRole(SpeakerRole rawRole) {
+        if (rawRole == pendingRole) {
+            pendingRoleFrames++;
+        } else {
+            pendingRole = rawRole;
+            pendingRoleFrames = 1;
+        }
+
+        if (rawRole == SpeakerRole.BOTH || pendingRoleFrames >= ROLE_SMOOTHING_FRAMES) {
+            return rawRole;
+        }
+        if (lastStableSpeechRole == SpeakerRole.SILENCE) {
+            return rawRole;
+        }
+        return lastStableSpeechRole;
+    }
+
+    private StudentMatch findBestStudentMatch(float[] embedding) {
+        int bestIndex = -1;
+        float bestSimilarity = 0.0f;
+        for (int index = 0; index < studentPrototypes.size(); index++) {
+            float similarity = embeddingExtractor.cosineSimilarity(embedding, studentPrototypes.get(index).centroid);
+            if (similarity > bestSimilarity) {
+                bestSimilarity = similarity;
+                bestIndex = index;
+            }
+        }
+        return new StudentMatch(bestIndex, bestSimilarity);
+    }
+
+    private void updateStudentPrototypes(float[] embedding, StudentMatch studentMatch) {
+        if (embedding == null || embedding.length == 0) {
+            return;
+        }
+        if (studentMatch.index >= 0 && studentMatch.similarity >= STUDENT_CLUSTER_UPDATE_THRESHOLD) {
+            studentPrototypes.get(studentMatch.index).update(embedding, embeddingExtractor);
+            return;
+        }
+        if (studentPrototypes.size() < MAX_STUDENT_CLUSTERS) {
+            studentPrototypes.add(new SpeakerPrototype(embedding));
+        }
     }
 
     private void logDecision(
             VadResult vadResult,
             SpeakerRole speakerRole,
             float instructorSimilarity,
+            float studentSimilarity,
             FrameVoiceFeatures features,
             String reason
     ) {
@@ -114,6 +218,10 @@ public final class SpeakerRoleClassifier {
                         + reason
                         + ", instructorSimilarity="
                         + instructorSimilarity
+                        + ", studentSimilarity="
+                        + studentSimilarity
+                        + ", studentClusters="
+                        + studentPrototypes.size()
                         + ", vadConfidence="
                         + vadResult.getConfidence()
                         + ", rms="
@@ -166,6 +274,35 @@ public final class SpeakerRoleClassifier {
             this.zcr = zcr;
             this.lowBandRatio = lowBandRatio;
             this.highBandRatio = highBandRatio;
+        }
+    }
+
+    private static final class StudentMatch {
+        private final int index;
+        private final float similarity;
+
+        StudentMatch(int index, float similarity) {
+            this.index = index;
+            this.similarity = similarity;
+        }
+    }
+
+    private static final class SpeakerPrototype {
+        private float[] centroid;
+        private int frameCount;
+
+        SpeakerPrototype(float[] embedding) {
+            this.centroid = embedding.clone();
+            this.frameCount = 1;
+        }
+
+        void update(float[] embedding, SpeakerEmbeddingExtractor embeddingExtractor) {
+            int updateWeight = Math.min(frameCount, MIN_STUDENT_CLUSTER_FRAMES);
+            for (int index = 0; index < centroid.length; index++) {
+                centroid[index] = ((centroid[index] * updateWeight) + embedding[index]) / (updateWeight + 1);
+            }
+            centroid = embeddingExtractor.l2Normalize(centroid);
+            frameCount++;
         }
     }
 }
