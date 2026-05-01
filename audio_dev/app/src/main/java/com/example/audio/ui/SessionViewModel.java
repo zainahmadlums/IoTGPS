@@ -10,6 +10,7 @@ public class SessionViewModel extends ViewModel {
 
     private boolean sessionRunning;
     private SessionState speechState = SessionState.IDLE;
+    private SpeakerRole tentativeSpeakerRole = SpeakerRole.SILENCE;
     private boolean disturbanceActive;
     private ReverbResult.Level reverbLevel = ReverbResult.Level.LOW;
     private SessionSummary sessionSummary;
@@ -30,29 +31,15 @@ public class SessionViewModel extends ViewModel {
     }
 
     public void setSpeakerRole(SpeakerRole speakerRole) {
-        if (speakerRole == null) {
-            speechState = SessionState.SILENCE;
-            return;
-        }
-        switch (speakerRole) {
-            case INSTRUCTOR:
-                speechState = SessionState.INSTRUCTOR;
-                break;
-            case STUDENT:
-                speechState = SessionState.STUDENT;
-                break;
-            case BOTH:
-                speechState = SessionState.BOTH;
-                break;
-            case SILENCE:
-            default:
-                speechState = SessionState.SILENCE;
-                break;
-        }
+        tentativeSpeakerRole = speakerRole == null ? SpeakerRole.SILENCE : speakerRole;
     }
 
     public SessionState getSpeechState() {
         return speechState;
+    }
+
+    public SpeakerRole getTentativeSpeakerRole() {
+        return tentativeSpeakerRole;
     }
 
     public boolean isDisturbanceActive() {

@@ -58,7 +58,9 @@ public class BatchEvaluationInstrumentedTest {
             return;
         }
 
-        File[] wavFiles = audioDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".wav"));
+        File[] wavFiles = audioDir.listFiles((dir, name) ->
+                !name.startsWith("._") && name.toLowerCase().endsWith(".wav")
+        );
         if (wavFiles == null || wavFiles.length == 0) {
             Log.i(TAG, "No WAV files found at " + audioDir.getAbsolutePath() + "; skipping.");
             return;
@@ -229,7 +231,8 @@ public class BatchEvaluationInstrumentedTest {
         AudioPipelineCoordinator coordinator = new AudioPipelineCoordinator(
                 SpeechDetectorFactory.create(context),
                 new EnergySpikeDetector(),
-                new EnergyDecayReverbEstimator()
+                new EnergyDecayReverbEstimator(),
+                new SpeakerRoleClassifier(profile, SpeakerRoleModel.load(context))
         );
         try {
             List<RoleFrame> frames = analyzeFrames(coordinator, wav.samples, config, filteredAudioFile);

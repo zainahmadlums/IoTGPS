@@ -11,8 +11,8 @@ import java.util.List;
 public final class SpeakerRoleClassifier {
 
     private static final String TAG = "SpeakerRoleClassifier";
-    private static final int SPEAKER_WINDOW_FRAMES = 24;
-    private static final int SPEAKER_HOP_FRAMES = 12;
+    private static final int SPEAKER_WINDOW_FRAMES = 64;
+    private static final int SPEAKER_HOP_FRAMES = 16;
     private static final int EMBEDDING_SAMPLE_FRAMES = 16;
     private static final int MAX_SPEECH_GAP_FRAMES = 10;
     private static final int MAX_STUDENT_CLUSTERS = 6;

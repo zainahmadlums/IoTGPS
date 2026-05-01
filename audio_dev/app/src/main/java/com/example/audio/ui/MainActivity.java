@@ -146,6 +146,7 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
     @Override
     public void onSpeechStateChanged(SpeechEvent speechEvent) {
         sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
+        sessionViewModel.setSpeechActive(speechEvent.isSpeech());
         sessionViewModel.setSpeakerRole(speechEvent.getSpeakerRole());
         sessionViewModel.setDisturbanceActive(speechEvent.isDisturbance());
         sessionViewModel.setReverbLevel(speechEvent.getReverbLevel());
@@ -163,6 +164,7 @@ public class MainActivity extends AppCompatActivity implements SessionRepository
         sessionViewModel.setSessionRunning(SessionRepository.getInstance().isSessionRunning());
         SpeechEvent latestSpeechEvent = SessionRepository.getInstance().getLatestSpeechEvent();
         if (latestSpeechEvent != null) {
+            sessionViewModel.setSpeechActive(latestSpeechEvent.isSpeech());
             sessionViewModel.setSpeakerRole(latestSpeechEvent.getSpeakerRole());
             sessionViewModel.setDisturbanceActive(latestSpeechEvent.isDisturbance());
             sessionViewModel.setReverbLevel(latestSpeechEvent.getReverbLevel());

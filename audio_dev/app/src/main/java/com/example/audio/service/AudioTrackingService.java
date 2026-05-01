@@ -21,8 +21,10 @@ import com.example.audio.audio.AudioRecorderManager;
 import com.example.audio.data.SessionArchiveEntry;
 import com.example.audio.data.SessionArchiveStore;
 import com.example.audio.data.SessionAudioFileManager;
+import com.example.audio.data.LiveDiarizationChunkWriter;
 import com.example.audio.data.InstructorVoiceProfile;
 import com.example.audio.data.InstructorVoiceProfileStore;
+import com.example.audio.data.SessionDiarizationChunk;
 import com.example.audio.data.SessionMetadata;
 import com.example.audio.data.SessionMetadataFileManager;
 import com.example.audio.data.SessionMetadataStore;
@@ -41,6 +43,8 @@ import com.example.audio.vad.SpeechDetectorFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class AudioTrackingService extends Service {
@@ -58,8 +62,10 @@ public class AudioTrackingService extends Service {
     private FrameProcessingDiagnostics diagnostics;
     private WavSessionRecorder rawSessionRecorder;
     private WavSessionRecorder conditionedSessionRecorder;
+    private LiveDiarizationChunkWriter diarizationChunkWriter;
     private String rawAudioFileName;
     private String conditionedAudioFileName;
+    private List<SessionDiarizationChunk> finalizedDiarizationChunks = new ArrayList<>();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean restartInFlight;
     private int debugFrameBridgeLogs;
@@ -221,6 +227,7 @@ public class AudioTrackingService extends Service {
         }
 
         finalizeSessionRecorders();
+        finalizeDiarizationChunks(endTimeMillis);
         SessionSummary sessionSummary = sessionRepository.getSessionSummary();
         String sessionId = "session-" + endTimeMillis;
         String metadataFileName = SessionMetadataFileManager.createOutputFile(this, startTimeMillis).getName();
@@ -248,7 +255,8 @@ public class AudioTrackingService extends Service {
                         ? sessionSummary.getCoarseReverbLevel()
                         : com.example.audio.reverb.ReverbResult.Level.LOW,
                 sessionRepository.getSpeechEvents(),
-                audioRecorderManager != null ? audioRecorderManager.getAudioConfig() : SpeechDetectorFactory.activeAudioConfig()
+                audioRecorderManager != null ? audioRecorderManager.getAudioConfig() : SpeechDetectorFactory.activeAudioConfig(),
+                finalizedDiarizationChunks
         );
         long fileSizeBytes = SessionMetadataStore.getInstance().writeMetadata(this, sessionMetadata);
 
@@ -267,8 +275,33 @@ public class AudioTrackingService extends Service {
                         sessionMetadata.getReverbLevel()
                 )
         );
+        deleteDiarizationChunkWorkingFiles(finalizedDiarizationChunks);
         rawAudioFileName = null;
         conditionedAudioFileName = null;
+        finalizedDiarizationChunks = new ArrayList<>();
+    }
+
+    private void deleteDiarizationChunkWorkingFiles(List<SessionDiarizationChunk> chunks) {
+        if (chunks == null || chunks.isEmpty()) {
+            return;
+        }
+        for (SessionDiarizationChunk chunk : chunks) {
+            if (chunk == null) {
+                continue;
+            }
+            deleteArchivedAudioFile(chunk.getAudioFileName());
+            deleteArchivedAudioFile(chunk.getMetadataFileName());
+        }
+    }
+
+    private void deleteArchivedAudioFile(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            return;
+        }
+        File file = SessionAudioFileManager.resolveAudioFile(this, fileName);
+        if (file.exists() && !file.delete()) {
+            Logger.e(TAG, "Failed to delete temporary diarization chunk file: " + file.getName());
+        }
     }
 
     private void restartTracking(String reason) {
@@ -299,6 +332,7 @@ public class AudioTrackingService extends Service {
             File conditionedAudioFile = SessionAudioFileManager.createConditionedOutputFile(this, startTimeMillis);
             rawSessionRecorder = new WavSessionRecorder(rawAudioFile, audioConfig);
             conditionedSessionRecorder = new WavSessionRecorder(conditionedAudioFile, audioConfig);
+            diarizationChunkWriter = new LiveDiarizationChunkWriter(this, audioConfig, startTimeMillis);
             rawAudioFileName = rawAudioFile.getName();
             conditionedAudioFileName = conditionedAudioFile.getName();
         } catch (IOException ioException) {
@@ -316,13 +350,36 @@ public class AudioTrackingService extends Service {
                 && analysisResult.getVadResult() != null
                 ? analysisResult.getVadResult().getPlaybackFrame()
                 : null;
+        short[] diarizationFrame = analysisResult != null
+                && analysisResult.getVadResult() != null
+                ? analysisResult.getVadResult().getConditionedFrame()
+                : null;
         if (conditionedFrame == null || conditionedFrame.length != rawFrame.length) {
             conditionedFrame = rawFrame;
+        }
+        if (diarizationFrame == null || diarizationFrame.length != rawFrame.length) {
+            diarizationFrame = conditionedFrame;
         }
 
         try {
             rawSessionRecorder.writeFrame(rawFrame);
             conditionedSessionRecorder.writeFrame(conditionedFrame);
+            if (diarizationChunkWriter != null) {
+                long timestampMillis = analysisResult != null && analysisResult.getVadResult() != null
+                        ? analysisResult.getVadResult().getTimestampMillis()
+                        : System.currentTimeMillis();
+                boolean speech = analysisResult != null
+                        && analysisResult.getVadResult() != null
+                        && analysisResult.getVadResult().isSpeech();
+                diarizationChunkWriter.writeFrame(
+                        diarizationFrame,
+                        timestampMillis,
+                        speech,
+                        analysisResult != null && analysisResult.getVadResult() != null
+                                ? analysisResult.getVadResult().getSpeakerRole()
+                                : com.example.audio.data.SpeakerRole.SILENCE
+                );
+            }
         } catch (IOException ioException) {
             Logger.e(TAG, "Failed to persist session audio frame.", ioException);
             abortSessionRecorders();
@@ -351,6 +408,15 @@ public class AudioTrackingService extends Service {
         }
     }
 
+    private void finalizeDiarizationChunks(long sessionEndTimeMillis) {
+        if (diarizationChunkWriter == null) {
+            finalizedDiarizationChunks = new ArrayList<>();
+            return;
+        }
+        finalizedDiarizationChunks = new ArrayList<>(diarizationChunkWriter.finish(sessionEndTimeMillis));
+        diarizationChunkWriter = null;
+    }
+
     private void abortSessionRecorders() {
         if (rawSessionRecorder != null) {
             rawSessionRecorder.abort();
@@ -360,8 +426,13 @@ public class AudioTrackingService extends Service {
             conditionedSessionRecorder.abort();
             conditionedSessionRecorder = null;
         }
+        if (diarizationChunkWriter != null) {
+            diarizationChunkWriter.abort();
+            diarizationChunkWriter = null;
+        }
         rawAudioFileName = null;
         conditionedAudioFileName = null;
+        finalizedDiarizationChunks = new ArrayList<>();
     }
 
     @Override

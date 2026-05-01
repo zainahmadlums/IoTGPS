@@ -45,7 +45,8 @@ public final class SessionMetadataStore {
             int disturbanceCount,
             com.example.audio.reverb.ReverbResult.Level reverbLevel,
             List<SpeechEvent> speechEvents,
-            AudioConfig audioConfig
+            AudioConfig audioConfig,
+            List<SessionDiarizationChunk> diarizationChunks
     ) {
         long durationMillis = Math.max(1_000L, endTimeMillis - startTimeMillis);
         List<SessionSpeechInterval> intervals = buildSpeechIntervals(
@@ -93,6 +94,9 @@ public final class SessionMetadataStore {
                 longestSpeechMillis,
                 intervals,
                 roleIntervals,
+                "COMPLETE",
+                "android-local-speaker-state",
+                diarizationChunks != null ? diarizationChunks : new ArrayList<>(),
                 rawAudioFileName,
                 conditionedAudioFileName,
                 instructorProfileMetadataFileName,
@@ -170,6 +174,9 @@ public final class SessionMetadataStore {
                 existingMetadata.getLongestSpeechMillis(),
                 existingMetadata.getSpeechIntervals(),
                 existingMetadata.getRoleIntervals(),
+                existingMetadata.getDiarizationStatus(),
+                existingMetadata.getDiarizationEngine(),
+                existingMetadata.getDiarizationChunks(),
                 updatedRawAudioFileName,
                 updatedConditionedAudioFileName,
                 existingMetadata.getInstructorProfileMetadataFileName(),

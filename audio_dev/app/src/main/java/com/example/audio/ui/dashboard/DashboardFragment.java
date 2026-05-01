@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.audio.R;
+import com.example.audio.data.SpeakerRole;
 import com.example.audio.pipeline.SessionSummary;
 import com.example.audio.ui.MainActivity;
 import com.example.audio.ui.SessionState;
@@ -27,6 +28,7 @@ public class DashboardFragment extends Fragment {
     private TextView heroLabelText;
     private TextView sessionStatusValue;
     private TextView speechStatusValue;
+    private TextView tentativeSpeakerValue;
     private TextView disturbanceStatusValue;
     private TextView reverbStatusValue;
     private TextView summaryValueText;
@@ -68,6 +70,7 @@ public class DashboardFragment extends Fragment {
         heroLabelText = view.findViewById(R.id.hero_status_text);
         sessionStatusValue = view.findViewById(R.id.session_status_value);
         speechStatusValue = view.findViewById(R.id.speech_status_value);
+        tentativeSpeakerValue = view.findViewById(R.id.tentative_speaker_value);
         disturbanceStatusValue = view.findViewById(R.id.disturbance_status_value);
         reverbStatusValue = view.findViewById(R.id.reverb_status_value);
         summaryValueText = view.findViewById(R.id.summary_value_text);
@@ -157,6 +160,7 @@ public class DashboardFragment extends Fragment {
                 ? R.string.session_running
                 : R.string.session_stopped);
         speechStatusValue.setText(toDisplayLabel(sessionViewModel.getSpeechState()));
+        tentativeSpeakerValue.setText(toTentativeSpeakerLabel(sessionViewModel.getTentativeSpeakerRole()));
         disturbanceStatusValue.setText(sessionViewModel.isDisturbanceActive()
                 ? getString(R.string.disturbance_detected)
                 : getString(R.string.disturbance_clear));
@@ -219,6 +223,23 @@ public class DashboardFragment extends Fragment {
             case RUNNING:
             default:
                 return getString(R.string.speech_state_idle);
+        }
+    }
+
+    private String toTentativeSpeakerLabel(SpeakerRole speakerRole) {
+        if (speakerRole == null) {
+            return getString(R.string.speech_state_silence);
+        }
+        switch (speakerRole) {
+            case INSTRUCTOR:
+                return getString(R.string.speech_state_instructor);
+            case STUDENT:
+                return getString(R.string.speech_state_student);
+            case BOTH:
+                return getString(R.string.speech_state_both);
+            case SILENCE:
+            default:
+                return getString(R.string.speech_state_silence);
         }
     }
 

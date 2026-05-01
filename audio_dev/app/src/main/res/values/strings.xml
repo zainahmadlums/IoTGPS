@@ -43,6 +43,7 @@
     <string name="dashboard_metric_reverb_value">%1$s profile</string>
     <string name="dashboard_session_state_label">Session status</string>
     <string name="dashboard_speech_state_label">Speech state</string>
+    <string name="dashboard_tentative_speaker_label">Tentative speaker</string>
     <string name="dashboard_disturbance_state_label">Disturbance</string>
     <string name="dashboard_reverb_state_label">Reverb</string>
     <string name="dashboard_summary_label">Latest summary</string>

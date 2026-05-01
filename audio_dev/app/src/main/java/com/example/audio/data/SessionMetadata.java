@@ -13,6 +13,8 @@ import java.util.List;
 public final class SessionMetadata {
 
     private static final String KEY_SESSION_ID = "sessionId";
+    private static final String KEY_PRIVACY_MODE = "privacyMode";
+    private static final String PRIVACY_MODE_LOCAL_ONLY = "local_only";
     private static final String KEY_TITLE = "title";
     private static final String KEY_METADATA_FILE_NAME = "metadataFileName";
     private static final String KEY_START_TIME_MILLIS = "startTimeMillis";
@@ -30,6 +32,9 @@ public final class SessionMetadata {
     private static final String KEY_LONGEST_SPEECH_MILLIS = "longestSpeechMillis";
     private static final String KEY_SPEECH_INTERVALS = "speechIntervals";
     private static final String KEY_ROLE_INTERVALS = "roleIntervals";
+    private static final String KEY_DIARIZATION_STATUS = "diarizationStatus";
+    private static final String KEY_DIARIZATION_ENGINE = "diarizationEngine";
+    private static final String KEY_DIARIZATION_CHUNKS = "diarizationChunks";
     private static final String KEY_RAW_AUDIO_FILE_NAME = "rawAudioFileName";
     private static final String KEY_CONDITIONED_AUDIO_FILE_NAME = "conditionedAudioFileName";
     private static final String KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME = "instructorProfileMetadataFileName";
@@ -53,6 +58,9 @@ public final class SessionMetadata {
     private final long longestSpeechMillis;
     private final List<SessionSpeechInterval> speechIntervals;
     private final List<SessionRoleInterval> roleIntervals;
+    private final String diarizationStatus;
+    private final String diarizationEngine;
+    private final List<SessionDiarizationChunk> diarizationChunks;
     private final String rawAudioFileName;
     private final String conditionedAudioFileName;
     private final String instructorProfileMetadataFileName;
@@ -77,6 +85,9 @@ public final class SessionMetadata {
             long longestSpeechMillis,
             List<SessionSpeechInterval> speechIntervals,
             List<SessionRoleInterval> roleIntervals,
+            String diarizationStatus,
+            String diarizationEngine,
+            List<SessionDiarizationChunk> diarizationChunks,
             String rawAudioFileName,
             String conditionedAudioFileName,
             String instructorProfileMetadataFileName,
@@ -98,8 +109,17 @@ public final class SessionMetadata {
         this.reverbLevel = reverbLevel;
         this.intervalCount = intervalCount;
         this.longestSpeechMillis = longestSpeechMillis;
-        this.speechIntervals = Collections.unmodifiableList(new ArrayList<>(speechIntervals));
-        this.roleIntervals = Collections.unmodifiableList(new ArrayList<>(roleIntervals));
+        this.speechIntervals = Collections.unmodifiableList(new ArrayList<>(
+                speechIntervals != null ? speechIntervals : Collections.emptyList()
+        ));
+        this.roleIntervals = Collections.unmodifiableList(new ArrayList<>(
+                roleIntervals != null ? roleIntervals : Collections.emptyList()
+        ));
+        this.diarizationStatus = diarizationStatus == null ? "PENDING" : diarizationStatus;
+        this.diarizationEngine = diarizationEngine;
+        this.diarizationChunks = Collections.unmodifiableList(new ArrayList<>(
+                diarizationChunks != null ? diarizationChunks : Collections.emptyList()
+        ));
         this.rawAudioFileName = rawAudioFileName;
         this.conditionedAudioFileName = conditionedAudioFileName;
         this.instructorProfileMetadataFileName = instructorProfileMetadataFileName;
@@ -178,6 +198,18 @@ public final class SessionMetadata {
         return roleIntervals;
     }
 
+    public String getDiarizationStatus() {
+        return diarizationStatus;
+    }
+
+    public String getDiarizationEngine() {
+        return diarizationEngine;
+    }
+
+    public List<SessionDiarizationChunk> getDiarizationChunks() {
+        return diarizationChunks;
+    }
+
     public String getRawAudioFileName() {
         return rawAudioFileName;
     }
@@ -197,6 +229,7 @@ public final class SessionMetadata {
     public JSONObject toJson() throws JSONException {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(KEY_SESSION_ID, sessionId);
+        jsonObject.put(KEY_PRIVACY_MODE, PRIVACY_MODE_LOCAL_ONLY);
         jsonObject.put(KEY_TITLE, title);
         jsonObject.put(KEY_METADATA_FILE_NAME, metadataFileName);
         jsonObject.put(KEY_START_TIME_MILLIS, startTimeMillis);
@@ -223,6 +256,13 @@ public final class SessionMetadata {
             roleIntervalsJson.put(roleInterval.toJson());
         }
         jsonObject.put(KEY_ROLE_INTERVALS, roleIntervalsJson);
+        jsonObject.put(KEY_DIARIZATION_STATUS, diarizationStatus);
+        jsonObject.put(KEY_DIARIZATION_ENGINE, diarizationEngine);
+        JSONArray diarizationChunksJson = new JSONArray();
+        for (SessionDiarizationChunk chunk : diarizationChunks) {
+            diarizationChunksJson.put(chunk.toJson());
+        }
+        jsonObject.put(KEY_DIARIZATION_CHUNKS, diarizationChunksJson);
         jsonObject.put(KEY_RAW_AUDIO_FILE_NAME, rawAudioFileName);
         jsonObject.put(KEY_CONDITIONED_AUDIO_FILE_NAME, conditionedAudioFileName);
         jsonObject.put(KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME, instructorProfileMetadataFileName);
@@ -251,6 +291,16 @@ public final class SessionMetadata {
                 }
             }
         }
+        JSONArray diarizationChunksJson = jsonObject.optJSONArray(KEY_DIARIZATION_CHUNKS);
+        List<SessionDiarizationChunk> diarizationChunks = new ArrayList<>();
+        if (diarizationChunksJson != null) {
+            for (int index = 0; index < diarizationChunksJson.length(); index++) {
+                JSONObject chunkJson = diarizationChunksJson.optJSONObject(index);
+                if (chunkJson != null) {
+                    diarizationChunks.add(SessionDiarizationChunk.fromJson(chunkJson));
+                }
+            }
+        }
 
         return new SessionMetadata(
                 jsonObject.getString(KEY_SESSION_ID),
@@ -273,6 +323,9 @@ public final class SessionMetadata {
                 jsonObject.optLong(KEY_LONGEST_SPEECH_MILLIS, 0L),
                 speechIntervals,
                 roleIntervals,
+                jsonObject.optString(KEY_DIARIZATION_STATUS, roleIntervals.isEmpty() ? "PENDING" : "COMPLETE"),
+                jsonObject.optString(KEY_DIARIZATION_ENGINE, roleIntervals.isEmpty() ? null : "legacy"),
+                diarizationChunks,
                 jsonObject.optString(KEY_RAW_AUDIO_FILE_NAME, null),
                 jsonObject.optString(KEY_CONDITIONED_AUDIO_FILE_NAME, null),
                 jsonObject.optString(KEY_INSTRUCTOR_PROFILE_METADATA_FILE_NAME, null),

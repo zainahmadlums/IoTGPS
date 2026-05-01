@@ -36,11 +36,11 @@ public class SpeakerRoleClassifierTest {
     }
 
     @Test
-    public void switchesToStudentAfterShortEmbeddingWindow() {
+    public void switchesToStudentAfterRollingEmbeddingWindow() {
         SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(buildInstructorProfile());
         SpeakerRole role = SpeakerRole.INSTRUCTOR;
 
-        for (int index = 0; index < 24; index++) {
+        for (int index = 0; index < 64; index++) {
             role = classifier.classify(
                     SyntheticAudioFactory.currentAlternatingFrame(6000),
                     new VadResult(index * 32L, true, 0.80f)

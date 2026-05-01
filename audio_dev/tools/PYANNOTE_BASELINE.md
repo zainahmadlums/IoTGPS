@@ -106,6 +106,68 @@ Android mic
 The live UI should still show immediate speech/silence from Android VAD, then
 apply delayed pyannote role labels when the service returns.
 
+## Live Mac M1 Experiment
+
+Android records immediate speech/silence and writes delayed diarization chunks:
+
+```text
+archived_audio/deployteach_diarization_chunk_..._0001.wav
+archived_audio/deployteach_diarization_chunk_..._0002.wav
+...
+```
+
+Chunks are 40 seconds with 5 seconds overlap. The app metadata starts with:
+
+```json
+{
+  "diarizationStatus": "PENDING",
+  "diarizationChunks": [...]
+}
+```
+
+Terminal 1: mirror app files while recording:
+
+```bash
+python3 tools/sync_android_live_session.py \
+  --out live_session_pull \
+  --poll-sec 10
+```
+
+Terminal 2: run pyannote on completed chunks:
+
+```bash
+MPLCONFIGDIR=/tmp/mplconfig XDG_CACHE_HOME=/tmp/xdg-cache HF_TOKEN=hf_xxx \
+python3 tools/live_pyannote_worker.py \
+  --chunk-dir live_session_pull/archived_audio \
+  --metadata live_session_pull/session_metadata/session_metadata_YYYYMMDD_HHMMSS.json \
+  --instructor-audio live_session_pull/archived_audio/deployteach_instructor_setup_YYYYMMDD_HHMMSS.wav \
+  --out live_session_pyannote \
+  --device mps
+```
+
+Use `--device cpu` if `mps` fails. CUDA on Colab/Kaggle is still the fastest
+option for long offline batches.
+
+Important: `--instructor-audio` must be the live enrolled instructor audio for
+that session/profile. The worker caches the pyannote embedding by that file's
+path, size, and modification time in:
+
+```text
+live_session_pyannote/instructor_embedding_cache.json
+```
+
+The worker writes:
+
+```text
+live_session_pyannote/chunk_predictions/*.json
+live_session_pyannote/live_state.json
+live_session_pyannote/session_metadata_pyannote_partial.json
+```
+
+During recording, keep showing only Android speech/silence. Use the partial or
+final pyannote-patched metadata for instructor/student/both graphs and JSON
+after enough delayed chunks have been processed, or at session end.
+
 ## Output Format
 
 Predictions are written as app-compatible JSON:
