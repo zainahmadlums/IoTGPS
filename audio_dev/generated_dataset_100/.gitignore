@@ -1,0 +1,7 @@
+audio/
+truth/
+normalized_sources/
+manifest.jsonl
+*.json
+*.jsonl
+*.wav

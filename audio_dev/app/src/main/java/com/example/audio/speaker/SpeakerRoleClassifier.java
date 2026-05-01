@@ -11,9 +11,10 @@ import java.util.List;
 public final class SpeakerRoleClassifier {
 
     private static final String TAG = "SpeakerRoleClassifier";
-    private static final int SHORT_WINDOW_FRAMES = 8;
-    private static final int IDENTITY_WINDOW_FRAMES = 32;
-    private static final int MIN_EMBEDDING_FRAMES = 8;
+    private static final int SPEAKER_WINDOW_FRAMES = 24;
+    private static final int SPEAKER_HOP_FRAMES = 12;
+    private static final int EMBEDDING_SAMPLE_FRAMES = 16;
+    private static final int MAX_SPEECH_GAP_FRAMES = 10;
     private static final int MAX_STUDENT_CLUSTERS = 6;
     private static final int MIN_STUDENT_CLUSTER_FRAMES = 2;
     private static final float INSTRUCTOR_ENTER_THRESHOLD = 0.93f;
@@ -28,14 +29,11 @@ public final class SpeakerRoleClassifier {
     private static final float MIN_ROLE_CONFIDENCE = 0.42f;
     private static final float OVERLAP_RMS_JUMP = 1.45f;
     private static final float OVERLAP_BAND_SHIFT = 0.22f;
-    private static final int ROLE_SMOOTHING_FRAMES = 3;
+    private static final int ROLE_SMOOTHING_WINDOWS = 1;
     private static final long LOG_INTERVAL_MILLIS = 1000L;
 
     private final SpeakerEmbeddingExtractor embeddingExtractor = new SpeakerEmbeddingExtractor();
-    private final SpeakerEmbeddingExtractor.RollingWindow shortWindow =
-            embeddingExtractor.new RollingWindow(SHORT_WINDOW_FRAMES);
-    private final SpeakerEmbeddingExtractor.RollingWindow identityWindow =
-            embeddingExtractor.new RollingWindow(IDENTITY_WINDOW_FRAMES);
+    private final List<short[]> speechWindowFrames = new ArrayList<>();
     private final List<SpeakerPrototype> studentPrototypes = new ArrayList<>();
     private final InstructorVoiceProfile instructorVoiceProfile;
     private final float[] instructorEmbedding;
@@ -43,6 +41,8 @@ public final class SpeakerRoleClassifier {
     private SpeakerRole lastStableSpeechRole = SpeakerRole.STUDENT;
     private SpeakerRole pendingRole = SpeakerRole.SILENCE;
     private int pendingRoleFrames;
+    private boolean activeSegmentHasDecision;
+    private int speechGapFrames;
     private float previousInstructorSimilarity = -1.0f;
     private long lastLogTimestampMillis;
 
@@ -60,12 +60,7 @@ public final class SpeakerRoleClassifier {
 
     public SpeakerRole classify(short[] frame, VadResult vadResult) {
         if (vadResult == null || !vadResult.isSpeech()) {
-            shortWindow.clear();
-            identityWindow.clear();
-            previousInstructorSimilarity = -1.0f;
-            pendingRole = SpeakerRole.SILENCE;
-            pendingRoleFrames = 0;
-            return SpeakerRole.SILENCE;
+            return handleNonSpeechFrame();
         }
         if (instructorVoiceProfile == null
                 || instructorEmbedding.length == 0
@@ -77,18 +72,20 @@ public final class SpeakerRoleClassifier {
         FrameVoiceFeatures features = extractFeatures(frame);
         float vadConfidence = vadResult.getConfidence() == null ? 0.0f : vadResult.getConfidence();
         if (features.rms < MIN_ROLE_RMS || vadConfidence < MIN_ROLE_CONFIDENCE) {
-            shortWindow.clear();
-            identityWindow.clear();
-            previousInstructorSimilarity = -1.0f;
             logDecision(vadResult, SpeakerRole.SILENCE, 0.0f, 0.0f, features, "weak-speech");
-            return SpeakerRole.SILENCE;
+            return handleNonSpeechFrame();
         }
 
-        shortWindow.add(frame);
-        identityWindow.add(frame);
-        float[] currentEmbedding = identityWindow.size() >= MIN_EMBEDDING_FRAMES
-                ? identityWindow.buildEmbedding()
-                : shortWindow.buildEmbedding();
+        speechGapFrames = 0;
+        speechWindowFrames.add(frame.clone());
+        if (speechWindowFrames.size() < SPEAKER_WINDOW_FRAMES) {
+            return activeSegmentHasDecision ? lastStableSpeechRole : SpeakerRole.SILENCE;
+        }
+
+        short[] speakerWindow = buildSpeakerWindow();
+        float[] currentEmbedding = buildWindowEmbedding();
+        trimConsumedSpeechFrames();
+        features = extractFeatures(speakerWindow);
         float instructorSimilarity = embeddingExtractor.cosineSimilarity(currentEmbedding, instructorEmbedding);
         StudentMatch studentMatch = findBestStudentMatch(currentEmbedding);
         boolean strongSpeech = vadResult.getConfidence() != null && vadResult.getConfidence() >= 0.72f;
@@ -125,6 +122,7 @@ public final class SpeakerRoleClassifier {
         SpeakerRole smoothedRole = smoothRole(rawRole);
         if (smoothedRole != SpeakerRole.SILENCE) {
             lastStableSpeechRole = smoothedRole;
+            activeSegmentHasDecision = true;
         }
         logDecision(
                 vadResult,
@@ -135,6 +133,57 @@ public final class SpeakerRoleClassifier {
                 rawRole == smoothedRole ? "diarized" : "smoothing"
         );
         return smoothedRole;
+    }
+
+    private SpeakerRole handleNonSpeechFrame() {
+        if (!speechWindowFrames.isEmpty() && speechGapFrames < MAX_SPEECH_GAP_FRAMES) {
+            speechGapFrames++;
+            return activeSegmentHasDecision ? lastStableSpeechRole : SpeakerRole.SILENCE;
+        }
+        speechWindowFrames.clear();
+        previousInstructorSimilarity = -1.0f;
+        pendingRole = SpeakerRole.SILENCE;
+        pendingRoleFrames = 0;
+        activeSegmentHasDecision = false;
+        speechGapFrames = 0;
+        return SpeakerRole.SILENCE;
+    }
+
+    private short[] buildSpeakerWindow() {
+        int sampleCount = 0;
+        for (short[] frame : speechWindowFrames) {
+            sampleCount += frame.length;
+        }
+        short[] window = new short[sampleCount];
+        int offset = 0;
+        for (short[] frame : speechWindowFrames) {
+            System.arraycopy(frame, 0, window, offset, frame.length);
+            offset += frame.length;
+        }
+        return window;
+    }
+
+    private void trimConsumedSpeechFrames() {
+        int removeCount = Math.min(SPEAKER_HOP_FRAMES, speechWindowFrames.size());
+        for (int index = 0; index < removeCount; index++) {
+            speechWindowFrames.remove(0);
+        }
+    }
+
+    private float[] buildWindowEmbedding() {
+        SpeakerEmbeddingExtractor.EmbeddingAccumulator accumulator =
+                new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
+        int sampleCount = Math.min(EMBEDDING_SAMPLE_FRAMES, speechWindowFrames.size());
+        if (sampleCount == 0) {
+            return embeddingExtractor.buildEmbedding(accumulator);
+        }
+        for (int index = 0; index < sampleCount; index++) {
+            int frameIndex = sampleCount == 1
+                    ? speechWindowFrames.size() - 1
+                    : Math.round(index * (speechWindowFrames.size() - 1.0f) / (sampleCount - 1.0f));
+            accumulator.add(embeddingExtractor.extractFrameFeatures(speechWindowFrames.get(frameIndex)));
+        }
+        return embeddingExtractor.buildEmbedding(accumulator);
     }
 
     private SpeakerRole classifyEmbedding(
@@ -217,7 +266,7 @@ public final class SpeakerRoleClassifier {
             pendingRoleFrames = 1;
         }
 
-        if (rawRole == SpeakerRole.BOTH || pendingRoleFrames >= ROLE_SMOOTHING_FRAMES) {
+        if (rawRole == SpeakerRole.BOTH || pendingRoleFrames >= ROLE_SMOOTHING_WINDOWS) {
             return rawRole;
         }
         if (lastStableSpeechRole == SpeakerRole.SILENCE) {

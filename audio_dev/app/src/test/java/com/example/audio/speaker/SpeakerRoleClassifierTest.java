@@ -20,7 +20,7 @@ public class SpeakerRoleClassifierTest {
                 new VadResult(0L, true, 0.80f)
         );
 
-        assertEquals(SpeakerRole.STUDENT, role);
+        assertEquals(SpeakerRole.SILENCE, role);
     }
 
     @Test
@@ -40,7 +40,7 @@ public class SpeakerRoleClassifierTest {
         SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(buildInstructorProfile());
         SpeakerRole role = SpeakerRole.INSTRUCTOR;
 
-        for (int index = 0; index < 4; index++) {
+        for (int index = 0; index < 24; index++) {
             role = classifier.classify(
                     SyntheticAudioFactory.currentAlternatingFrame(6000),
                     new VadResult(index * 32L, true, 0.80f)

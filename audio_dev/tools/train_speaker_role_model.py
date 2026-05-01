@@ -20,9 +20,11 @@ BAND_COUNT = 24
 MIN_DFT_BIN = 2
 MAX_DFT_BIN = 96
 FEATURE_COUNT = BAND_COUNT + 4
-IDENTITY_WINDOW_FRAMES = 32
+SPEAKER_WINDOW_FRAMES = 24
+EMBEDDING_SAMPLE_FRAMES = 8
 LABELS = ("INSTRUCTOR", "STUDENT", "BOTH")
 SUPPORTED_AUDIO_EXTENSIONS = {".wav", ".opus", ".ogg", ".m4a", ".aac", ".mp3", ".flac", ".caf", ".aif", ".aiff", ".mp4"}
+MAX_PROFILE_FRAMES_PER_CLIP = 40
 
 
 def parse_args():
@@ -65,6 +67,17 @@ def read_audio(path, cache):
 def frames(samples):
     for offset in range(0, len(samples) - FRAME_SIZE + 1, FRAME_SIZE):
         yield samples[offset:offset + FRAME_SIZE]
+
+
+def sampled_frames(samples, limit=MAX_PROFILE_FRAMES_PER_CLIP):
+    all_frames = list(frames(samples))
+    if len(all_frames) <= limit:
+        return all_frames
+    output = []
+    for index in range(limit):
+        frame_index = round(index * (len(all_frames) - 1) / (limit - 1))
+        output.append(all_frames[frame_index])
+    return output
 
 
 def frame_features(frame):
@@ -175,14 +188,37 @@ def voice_features(frame):
     )
 
 
+def window_embedding(feature_window):
+    if not feature_window:
+        return [0.0] * (FEATURE_COUNT * 2)
+    sample_count = min(EMBEDDING_SAMPLE_FRAMES, len(feature_window))
+    rows = []
+    for index in range(sample_count):
+        if sample_count == 1:
+            frame_index = len(feature_window) - 1
+        else:
+            frame_index = round(index * (len(feature_window) - 1) / (sample_count - 1))
+        rows.append(feature_window[frame_index])
+    return build_embedding(rows)
+
+
+def flatten_window(window):
+    samples = []
+    for frame in window:
+        samples.extend(frame)
+    return tuple(samples)
+
+
 def clip_windows(samples, limit):
-    window = deque(maxlen=IDENTITY_WINDOW_FRAMES)
+    window = deque(maxlen=SPEAKER_WINDOW_FRAMES)
+    feature_window = deque(maxlen=SPEAKER_WINDOW_FRAMES)
     output = []
     for frame in frames(samples):
-        features = frame_features(frame)
-        window.append(features)
-        if len(window) >= 8:
-            output.append((frame, build_embedding(list(window))))
+        window.append(frame)
+        feature_window.append(frame_features(frame))
+        if len(window) >= SPEAKER_WINDOW_FRAMES:
+            window_frames = list(window)
+            output.append((flatten_window(window_frames), window_embedding(list(feature_window))))
         if len(output) >= limit:
             break
     return output
@@ -255,15 +291,18 @@ def main():
     if not instructor_clips or not student_clips:
         raise RuntimeError("Need instructor and student clips under dataset_sources.")
 
-    instructor_rows = [frame_features(frame) for samples in instructor_clips for frame in frames(samples)]
-    instructor_voice = [voice_features(frame) for samples in instructor_clips for frame in frames(samples)]
+    instructor_sampled_frames = [frame for samples in instructor_clips for frame in sampled_frames(samples)]
+    instructor_rows = [frame_features(frame) for frame in instructor_sampled_frames]
+    instructor_voice = [voice_features(frame) for frame in instructor_sampled_frames]
     instructor_embedding = build_embedding(instructor_rows)
     instructor_stats = (
         sum(row[0] for row in instructor_voice) / len(instructor_voice),
         sum(row[2] for row in instructor_voice) / len(instructor_voice),
         sum(row[3] for row in instructor_voice) / len(instructor_voice),
     )
-    student_embeddings = [build_embedding([frame_features(frame) for frame in frames(samples)]) for samples in student_clips]
+    # Runtime starts without known student clusters, so train the model to survive cold-start
+    # speaker decisions instead of depending on unavailable student prototype similarity.
+    student_embeddings = []
 
     instructor_windows = []
     student_windows = []
