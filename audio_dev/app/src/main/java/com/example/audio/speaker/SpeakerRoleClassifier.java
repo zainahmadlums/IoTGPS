@@ -1,5 +1,9 @@
 package com.example.audio.speaker;
 
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor;
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig;
+import com.k2fsa.sherpa.onnx.OnlineStream;
+
 import com.example.audio.data.InstructorVoiceProfile;
 import com.example.audio.data.SpeakerRole;
 import com.example.audio.util.Logger;
@@ -8,31 +12,33 @@ import com.example.audio.vad.VadResult;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class SpeakerRoleClassifier {
+public final class SpeakerRoleClassifier implements SpeakerDiarizer {
 
     private static final String TAG = "SpeakerRoleClassifier";
-    private static final int SPEAKER_WINDOW_FRAMES = 64;
-    private static final int SPEAKER_HOP_FRAMES = 16;
+    private static final int SPEAKER_WINDOW_FRAMES = 150;
+    private static final int SPEAKER_HOP_FRAMES = 50;
     private static final int EMBEDDING_SAMPLE_FRAMES = 16;
     private static final int MAX_SPEECH_GAP_FRAMES = 10;
     private static final int MAX_STUDENT_CLUSTERS = 6;
     private static final int MIN_STUDENT_CLUSTER_FRAMES = 2;
-    private static final float INSTRUCTOR_ENTER_THRESHOLD = 0.93f;
-    private static final float INSTRUCTOR_STAY_THRESHOLD = 0.90f;
-    private static final float INSTRUCTOR_STRICT_THRESHOLD = 0.96f;
-    private static final float STUDENT_CLUSTER_THRESHOLD = 0.88f;
-    private static final float STUDENT_CLUSTER_UPDATE_THRESHOLD = 0.82f;
+    private static final float INSTRUCTOR_ENTER_THRESHOLD = 0.97f;
+    private static final float INSTRUCTOR_STAY_THRESHOLD = 0.96f;
+    private static final float INSTRUCTOR_STRICT_THRESHOLD = 0.975f;
+    private static final float STUDENT_CLUSTER_THRESHOLD = 0.75f;
+    private static final float STUDENT_CLUSTER_UPDATE_THRESHOLD = 0.70f;
     private static final float SPEAKER_MARGIN = 0.035f;
     private static final float BOTH_MIN_INSTRUCTOR_SIMILARITY = 0.78f;
     private static final float BOTH_MIN_STUDENT_SIMILARITY = 0.78f;
     private static final float MIN_ROLE_RMS = 0.012f;
     private static final float MIN_ROLE_CONFIDENCE = 0.42f;
-    private static final float OVERLAP_RMS_JUMP = 1.45f;
-    private static final float OVERLAP_BAND_SHIFT = 0.22f;
+    private static final float OVERLAP_RMS_JUMP = 1.30f;
+    private static final float OVERLAP_BAND_SHIFT = 0.18f;
     private static final int ROLE_SMOOTHING_WINDOWS = 1;
     private static final long LOG_INTERVAL_MILLIS = 1000L;
 
-    private final SpeakerEmbeddingExtractor embeddingExtractor = new SpeakerEmbeddingExtractor();
+    private final LegacySpeakerEmbeddingExtractor legacyExtractor = new LegacySpeakerEmbeddingExtractor();
+    private SpeakerEmbeddingExtractor sherpaExtractor;
+    private OnlineStream sherpaStream;
     private final List<short[]> speechWindowFrames = new ArrayList<>();
     private final List<SpeakerPrototype> studentPrototypes = new ArrayList<>();
     private final InstructorVoiceProfile instructorVoiceProfile;
@@ -46,15 +52,17 @@ public final class SpeakerRoleClassifier {
     private float previousInstructorSimilarity = -1.0f;
     private long lastLogTimestampMillis;
 
-    public SpeakerRoleClassifier(InstructorVoiceProfile instructorVoiceProfile) {
-        this(instructorVoiceProfile, null);
+    public SpeakerRoleClassifier(android.content.Context context, InstructorVoiceProfile instructorVoiceProfile) {
+        this(context, instructorVoiceProfile, null);
     }
 
-    public SpeakerRoleClassifier(InstructorVoiceProfile instructorVoiceProfile, SpeakerRoleModel speakerRoleModel) {
+    public SpeakerRoleClassifier(android.content.Context context, InstructorVoiceProfile instructorVoiceProfile, SpeakerRoleModel speakerRoleModel) {
         this.instructorVoiceProfile = instructorVoiceProfile;
         this.instructorEmbedding = instructorVoiceProfile == null
                 ? new float[0]
                 : instructorVoiceProfile.getSpeakerEmbedding();
+        initSherpa(context);
+
         this.speakerRoleModel = speakerRoleModel;
     }
 
@@ -86,7 +94,7 @@ public final class SpeakerRoleClassifier {
         float[] currentEmbedding = buildWindowEmbedding();
         trimConsumedSpeechFrames();
         features = extractFeatures(speakerWindow);
-        float instructorSimilarity = embeddingExtractor.cosineSimilarity(currentEmbedding, instructorEmbedding);
+        float instructorSimilarity = legacyExtractor.cosineSimilarity(currentEmbedding, instructorEmbedding);
         StudentMatch studentMatch = findBestStudentMatch(currentEmbedding);
         boolean strongSpeech = vadResult.getConfidence() != null && vadResult.getConfidence() >= 0.72f;
         boolean overlapEnergyJump = instructorVoiceProfile.getAverageRms() > 0.0f
@@ -171,19 +179,30 @@ public final class SpeakerRoleClassifier {
     }
 
     private float[] buildWindowEmbedding() {
-        SpeakerEmbeddingExtractor.EmbeddingAccumulator accumulator =
-                new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
+        if (sherpaExtractor != null && sherpaStream != null) {
+            short[] window = buildSpeakerWindow();
+            float[] floatSamples = new float[window.length];
+            for (int i = 0; i < window.length; i++) floatSamples[i] = window[i] / 32768.0f;
+            sherpaStream.acceptWaveform(floatSamples, 16000);
+            if (sherpaExtractor.isReady(sherpaStream)) {
+                return sherpaExtractor.compute(sherpaStream);
+            }
+        }
+        LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator accumulator =
+                new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
         int sampleCount = Math.min(EMBEDDING_SAMPLE_FRAMES, speechWindowFrames.size());
         if (sampleCount == 0) {
-            return embeddingExtractor.buildEmbedding(accumulator);
+            return legacyExtractor.buildEmbedding(accumulator);
         }
         for (int index = 0; index < sampleCount; index++) {
             int frameIndex = sampleCount == 1
                     ? speechWindowFrames.size() - 1
                     : Math.round(index * (speechWindowFrames.size() - 1.0f) / (sampleCount - 1.0f));
-            accumulator.add(embeddingExtractor.extractFrameFeatures(speechWindowFrames.get(frameIndex)));
+            accumulator.add(legacyExtractor.extractFrameFeatures(speechWindowFrames.get(frameIndex)));
         }
-        return embeddingExtractor.buildEmbedding(accumulator);
+        return legacyExtractor.buildEmbedding(accumulator);
+    }
+
     }
 
     private SpeakerRole classifyEmbedding(
@@ -279,7 +298,7 @@ public final class SpeakerRoleClassifier {
         int bestIndex = -1;
         float bestSimilarity = 0.0f;
         for (int index = 0; index < studentPrototypes.size(); index++) {
-            float similarity = embeddingExtractor.cosineSimilarity(embedding, studentPrototypes.get(index).centroid);
+            float similarity = legacyExtractor.cosineSimilarity(embedding, studentPrototypes.get(index).centroid);
             if (similarity > bestSimilarity) {
                 bestSimilarity = similarity;
                 bestIndex = index;
@@ -293,7 +312,7 @@ public final class SpeakerRoleClassifier {
             return;
         }
         if (studentMatch.index >= 0 && studentMatch.similarity >= STUDENT_CLUSTER_UPDATE_THRESHOLD) {
-            studentPrototypes.get(studentMatch.index).update(embedding, embeddingExtractor);
+            studentPrototypes.get(studentMatch.index).update(embedding, legacyExtractor);
             return;
         }
         if (studentPrototypes.size() < MAX_STUDENT_CLUSTERS) {
@@ -338,6 +357,68 @@ public final class SpeakerRoleClassifier {
                         + features.highBandRatio
         );
     }
+
+    @Override
+    public SpeakerRole[] processAll(short[] samples) {
+        // Fallback to frame-by-frame classification for existing classifier
+        int frameSize = 160; // Default frame size
+        int frameCount = samples.length / frameSize;
+        SpeakerRole[] roles = new SpeakerRole[frameCount];
+        for (int i = 0; i < frameCount; i++) {
+            short[] frame = new short[frameSize];
+            int copyLength = Math.min(frameSize, samples.length - i * frameSize);
+            System.arraycopy(samples, i * frameSize, frame, 0, copyLength);
+            roles[i] = classify(frame, null);
+        }
+        return roles;
+    }
+
+    @Override
+    public void close() {
+        if (sherpaStream != null) {
+            sherpaStream.release();
+            sherpaStream = null;
+        }
+        if (sherpaExtractor != null) {
+            sherpaExtractor.release();
+            sherpaExtractor = null;
+        }
+    }
+
+
+    private void initSherpa(android.content.Context context) {
+        if (context == null) return;
+        try {
+            String modelPath = copyAssetToFile(context, "sherpa-onnx/embedding.onnx");
+            SpeakerEmbeddingExtractorConfig config = SpeakerEmbeddingExtractorConfig.builder()
+                    .setModel(modelPath)
+                    .setNumThreads(4)
+                    .setDebug(false)
+                    .build();
+            sherpaExtractor = new SpeakerEmbeddingExtractor(config);
+            sherpaStream = sherpaExtractor.createStream();
+            Logger.i(TAG, "Sherpa-ONNX Live Tracking initialized.");
+        } catch (Exception e) {
+            Logger.e(TAG, "Failed to init Sherpa-ONNX", e);
+        }
+    }
+
+    private String copyAssetToFile(android.content.Context context, String assetPath) {
+        java.io.File file = new java.io.File(context.getFilesDir(), assetPath);
+        if (file.exists()) return file.getAbsolutePath();
+        java.io.File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        try (java.io.InputStream in = context.getAssets().open(assetPath);
+             java.io.OutputStream out = new java.io.FileOutputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
 
     private FrameVoiceFeatures extractFeatures(short[] frame) {
         double energy = 0.0d;
@@ -405,7 +486,7 @@ public final class SpeakerRoleClassifier {
             for (int index = 0; index < centroid.length; index++) {
                 centroid[index] = ((centroid[index] * updateWeight) + embedding[index]) / (updateWeight + 1);
             }
-            centroid = embeddingExtractor.l2Normalize(centroid);
+            centroid = legacyExtractor.l2Normalize(centroid);
             frameCount++;
         }
     }

@@ -131,7 +131,7 @@ public class AudioTrackingService extends Service {
                     SpeechDetectorFactory.create(this),
                     new EnergySpikeDetector(),
                     new EnergyDecayReverbEstimator(),
-                    new SpeakerRoleClassifier(
+                    new SpeakerRoleClassifier(this, 
                             InstructorVoiceProfileStore.getInstance().readProfile(this),
                             SpeakerRoleModel.load(this)
                     )

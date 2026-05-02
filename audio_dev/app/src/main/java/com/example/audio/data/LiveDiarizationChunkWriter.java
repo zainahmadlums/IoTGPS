@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 public final class LiveDiarizationChunkWriter {
 

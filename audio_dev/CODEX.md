@@ -218,43 +218,21 @@ Conclusion: pyannote-style diarization is the better backend. The next work shou
 
 ## Batch Evaluation Direction
 
-Batch/pre-recorded evaluation should be Python-first, not Android-emulator-first, for speed and reproducibility.
+Batch/pre-recorded evaluation is now Python-canonical via the refactored `tools/run_pyannote_baseline.py`.
 
-Desired batch path:
+It supports:
+- **Conditioned Signal Path**: Uses `filtered_audio/*.wav` and `vad/*.json` exported from Android.
+- **Real Speaker Mapping**: Uses `pyannote/wespeaker-voxceleb-resnet34-LM` to map anonymous speakers to the enrolled instructor profile.
+- **App-Compatible JSON**: Writes `roleIntervals` and 32ms `frames` to match the Android schema.
 
-```text
-generated_dataset/audio/*.wav
-  -> optional Android/Java preprocessing output or already filtered WAV
-  -> Silero VAD speech/silence timestamps
-  -> pyannote diarization on full or trimmed audio
-  -> map anonymous speakers to INSTRUCTOR/STUDENT/BOTH/SILENCE
-  -> write app-compatible prediction JSON
-  -> tools/score_dataset.py
-```
-
-Use a persistent Python process/service for pyannote. Do not load pyannote once per file.
-
-First batch integration target:
-
-```text
-tools/run_pyannote_baseline.py
-```
-
-Should support:
-
-```text
---audio generated_dataset/audio
---truth generated_dataset/truth
---profile generated_dataset/instructor_profile.wav
---out generated_dataset/pyannote_pipeline_100
---score
-```
-
-Expected outputs:
-
-```text
-generated_dataset/pyannote_pipeline_100/predictions/*.json
-generated_dataset/pyannote_pipeline_100/metrics.json
+Run it with:
+```bash
+python3 tools/run_pyannote_baseline.py \
+  --audio generated_dataset_100/android_pipeline_100/filtered_audio \
+  --vad generated_dataset_100/android_pipeline_100/vad \
+  --instructor-profile generated_dataset_100/results/android_batch_eval_100/profile/instructor_profile.wav \
+  --out generated_dataset_100/results/pyannote_android_pipeline_100 \
+  --score
 ```
 
 ## Android Integration Direction

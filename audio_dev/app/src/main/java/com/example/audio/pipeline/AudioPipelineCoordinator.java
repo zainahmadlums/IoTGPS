@@ -3,7 +3,7 @@ package com.example.audio.pipeline;
 import com.example.audio.audio.FrameProcessor;
 import com.example.audio.disturbance.DisturbanceDetector;
 import com.example.audio.reverb.ReverbEstimator;
-import com.example.audio.speaker.SpeakerRoleClassifier;
+import com.example.audio.speaker.SpeakerDiarizer;
 import com.example.audio.vad.SpeechDetector;
 import com.example.audio.vad.VadResult;
 
@@ -12,7 +12,7 @@ public class AudioPipelineCoordinator implements FrameProcessor {
     private final SpeechDetector speechDetector;
     private final DisturbanceDetector disturbanceDetector;
     private final ReverbEstimator reverbEstimator;
-    private final SpeakerRoleClassifier speakerRoleClassifier;
+    private final SpeakerDiarizer speakerDiarizer;
 
     public AudioPipelineCoordinator(
             SpeechDetector speechDetector,
@@ -26,12 +26,12 @@ public class AudioPipelineCoordinator implements FrameProcessor {
             SpeechDetector speechDetector,
             DisturbanceDetector disturbanceDetector,
             ReverbEstimator reverbEstimator,
-            SpeakerRoleClassifier speakerRoleClassifier
+            SpeakerDiarizer speakerDiarizer
     ) {
         this.speechDetector = speechDetector;
         this.disturbanceDetector = disturbanceDetector;
         this.reverbEstimator = reverbEstimator;
-        this.speakerRoleClassifier = speakerRoleClassifier;
+        this.speakerDiarizer = speakerDiarizer;
     }
 
     @Override
@@ -58,10 +58,14 @@ public class AudioPipelineCoordinator implements FrameProcessor {
 
     public void close() {
         speechDetector.close();
+        if (speakerDiarizer != null) {
+            speakerDiarizer.close();
+        }
+
     }
 
     private VadResult withSpeakerRole(short[] frame, VadResult vadResult) {
-        if (vadResult == null || speakerRoleClassifier == null) {
+        if (vadResult == null || speakerDiarizer == null) {
             return vadResult;
         }
         return new VadResult(
@@ -70,7 +74,7 @@ public class AudioPipelineCoordinator implements FrameProcessor {
                 vadResult.getConfidence(),
                 vadResult.getConditionedFrame(),
                 vadResult.getPlaybackFrame(),
-                speakerRoleClassifier.classify(frame, vadResult)
+                speakerDiarizer.classify(frame, vadResult)
         );
     }
 }

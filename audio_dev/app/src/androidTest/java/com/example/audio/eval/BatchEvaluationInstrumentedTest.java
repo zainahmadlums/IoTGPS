@@ -18,6 +18,8 @@ import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.reverb.EnergyDecayReverbEstimator;
 import com.example.audio.speaker.SpeakerEmbeddingExtractor;
 import com.example.audio.speaker.SpeakerRoleClassifier;
+import com.example.audio.speaker.SherpaSpeakerDiarizer;
+import com.example.audio.speaker.SpeakerDiarizer;
 import com.example.audio.speaker.SpeakerRoleModel;
 import com.example.audio.vad.SpeechDetectorFactory;
 import com.example.audio.vad.VadResult;
@@ -81,14 +83,19 @@ public class BatchEvaluationInstrumentedTest {
         }
 
         InstructorVoiceProfile profile = resolveInstructorProfile(context, rootDir);
-        for (File wavFile : wavFiles) {
-            File predictionFile = new File(predictionDir, replaceExtension(wavFile.getName(), ".json"));
-            File vadFile = new File(vadDir, replaceExtension(wavFile.getName(), ".json"));
-            File filteredAudioFile = new File(filteredAudioDir, wavFile.getName());
-            processOneFile(context, profile, wavFile, predictionFile, vadFile, filteredAudioFile);
-            Log.i(TAG, "Wrote prediction " + predictionFile.getAbsolutePath());
-            Log.i(TAG, "Wrote Android VAD " + vadFile.getAbsolutePath());
-            Log.i(TAG, "Wrote conditioned audio " + filteredAudioFile.getAbsolutePath());
+        SherpaSpeakerDiarizer sherpaDiarizer = new SherpaSpeakerDiarizer(context);
+        try {
+            for (File wavFile : wavFiles) {
+                File predictionFile = new File(predictionDir, replaceExtension(wavFile.getName(), ".json"));
+                File vadFile = new File(vadDir, replaceExtension(wavFile.getName(), ".json"));
+                File filteredAudioFile = new File(filteredAudioDir, wavFile.getName());
+                processOneFile(context, profile, sherpaDiarizer, wavFile, predictionFile, vadFile, filteredAudioFile);
+                Log.i(TAG, "Wrote prediction " + predictionFile.getAbsolutePath());
+                Log.i(TAG, "Wrote Android VAD " + vadFile.getAbsolutePath());
+                Log.i(TAG, "Wrote conditioned audio " + filteredAudioFile.getAbsolutePath());
+            }
+        } finally {
+            sherpaDiarizer.release();
         }
     }
 
@@ -217,6 +224,7 @@ public class BatchEvaluationInstrumentedTest {
     private void processOneFile(
             Context context,
             InstructorVoiceProfile profile,
+            SpeakerDiarizer diarizer,
             File wavFile,
             File predictionFile,
             File vadFile,
@@ -232,10 +240,10 @@ public class BatchEvaluationInstrumentedTest {
                 SpeechDetectorFactory.create(context),
                 new EnergySpikeDetector(),
                 new EnergyDecayReverbEstimator(),
-                new SpeakerRoleClassifier(profile, SpeakerRoleModel.load(context))
+                null // Speaker roles will be handled by processAll later
         );
         try {
-            List<RoleFrame> frames = analyzeFrames(coordinator, wav.samples, config, filteredAudioFile);
+            List<RoleFrame> frames = analyzeFrames(coordinator, diarizer, wav.samples, config, filteredAudioFile);
             writePrediction(predictionFile, wavFile.getName(), wav.durationMillis(), config.getFrameDurationMs(), frames);
             writeVadExport(
                     vadFile,
@@ -252,6 +260,7 @@ public class BatchEvaluationInstrumentedTest {
 
     private List<RoleFrame> analyzeFrames(
             AudioPipelineCoordinator coordinator,
+            SpeakerDiarizer diarizer,
             short[] samples,
             AudioConfig config,
             File filteredAudioFile
@@ -259,6 +268,9 @@ public class BatchEvaluationInstrumentedTest {
         List<RoleFrame> frames = new ArrayList<>();
         int frameSize = config.getFrameSizeSamples();
         int frameDurationMs = config.getFrameDurationMs();
+        
+        SpeakerRole[] allRoles = diarizer != null ? diarizer.processAll(samples) : null;
+        
         WavSessionRecorder filteredRecorder = new WavSessionRecorder(filteredAudioFile, config);
         try {
             for (int offset = 0; offset < samples.length; offset += frameSize) {
@@ -268,8 +280,18 @@ public class BatchEvaluationInstrumentedTest {
                 long timestampMillis = ((long) frames.size()) * frameDurationMs;
                 FrameAnalysisResult result = coordinator.process(frame, timestampMillis);
                 VadResult vadResult = result.getVadResult();
-                SpeakerRole role = vadResult == null ? SpeakerRole.SILENCE : vadResult.getSpeakerRole();
-                boolean speech = vadResult != null && vadResult.isSpeech();
+                
+                SpeakerRole role = allRoles != null && frames.size() < allRoles.length
+                        ? allRoles[frames.size()]
+                        : (vadResult == null ? SpeakerRole.SILENCE : vadResult.getSpeakerRole());
+                
+                // Silero VAD overrides diarizer if it says silence
+                boolean sileroSpeech = vadResult != null && vadResult.isSpeech();
+                if (!sileroSpeech) {
+                    role = SpeakerRole.SILENCE;
+                }
+                
+                boolean speech = role != SpeakerRole.SILENCE;
                 float confidence = vadResult == null || vadResult.getConfidence() == null
                         ? 0.0f
                         : vadResult.getConfidence();

@@ -2,7 +2,7 @@ package com.example.audio.data;
 
 import android.content.Context;
 
-import com.example.audio.speaker.SpeakerEmbeddingExtractor;
+import com.example.audio.speaker.LegacySpeakerEmbeddingExtractor;
 import com.example.audio.util.Logger;
 
 import org.json.JSONException;
@@ -32,8 +32,8 @@ public final class InstructorVoiceProfileStore {
     public boolean hasProfile(Context context) {
         InstructorVoiceProfile profile = readProfile(context);
         return profile != null
-                && profile.getEmbeddingVersion() == SpeakerEmbeddingExtractor.EMBEDDING_VERSION
-                && profile.getSpeakerEmbedding().length == new SpeakerEmbeddingExtractor().embeddingSize()
+                && profile.getEmbeddingVersion() == LegacySpeakerEmbeddingExtractor.EMBEDDING_VERSION
+                && profile.getSpeakerEmbedding().length == new LegacySpeakerEmbeddingExtractor().embeddingSize()
                 && SessionAudioFileManager.resolveAudioFile(
                 context.getApplicationContext(),
                 profile.getAudioFileName()
