@@ -13,7 +13,7 @@ public class SpeakerRoleClassifierTest {
 
     @Test
     public void warmupSpeechDoesNotAssumeInstructor() {
-        SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(buildInstructorProfile());
+        SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(null, buildInstructorProfile());
 
         SpeakerRole role = classifier.classify(
                 SyntheticAudioFactory.currentSineFrame(6000, 220.0f),
@@ -25,7 +25,7 @@ public class SpeakerRoleClassifierTest {
 
     @Test
     public void weakSpeechConfidenceIsSilenceForRoleClassifier() {
-        SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(buildInstructorProfile());
+        SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(null, buildInstructorProfile());
 
         SpeakerRole role = classifier.classify(
                 SyntheticAudioFactory.currentConstantFrame(20),
@@ -37,10 +37,10 @@ public class SpeakerRoleClassifierTest {
 
     @Test
     public void switchesToStudentAfterRollingEmbeddingWindow() {
-        SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(buildInstructorProfile());
+        SpeakerRoleClassifier classifier = new SpeakerRoleClassifier(null, buildInstructorProfile());
         SpeakerRole role = SpeakerRole.INSTRUCTOR;
 
-        for (int index = 0; index < 64; index++) {
+        for (int index = 0; index < 200; index++) {
             role = classifier.classify(
                     SyntheticAudioFactory.currentAlternatingFrame(6000),
                     new VadResult(index * 32L, true, 0.80f)
@@ -51,9 +51,9 @@ public class SpeakerRoleClassifierTest {
     }
 
     private InstructorVoiceProfile buildInstructorProfile() {
-        SpeakerEmbeddingExtractor extractor = new SpeakerEmbeddingExtractor();
-        SpeakerEmbeddingExtractor.EmbeddingAccumulator accumulator =
-                new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
+        LegacySpeakerEmbeddingExtractor extractor = new LegacySpeakerEmbeddingExtractor();
+        LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator accumulator =
+                new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
         for (int index = 0; index < 16; index++) {
             accumulator.add(extractor.extractFrameFeatures(
                     SyntheticAudioFactory.currentSineFrame(6000, 180.0f)
@@ -77,7 +77,7 @@ public class SpeakerRoleClassifierTest {
                 0.05f,
                 0.40f,
                 0.60f,
-                SpeakerEmbeddingExtractor.EMBEDDING_VERSION,
+                LegacySpeakerEmbeddingExtractor.EMBEDDING_VERSION,
                 extractor.buildEmbedding(accumulator)
         );
     }

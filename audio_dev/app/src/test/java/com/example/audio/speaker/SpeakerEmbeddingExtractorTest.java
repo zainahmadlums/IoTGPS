@@ -10,13 +10,13 @@ public class SpeakerEmbeddingExtractorTest {
 
     @Test
     public void givesHigherSimilarityToSameSpectralSpeakerWindow() {
-        SpeakerEmbeddingExtractor extractor = new SpeakerEmbeddingExtractor();
-        SpeakerEmbeddingExtractor.EmbeddingAccumulator instructor =
-                new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
-        SpeakerEmbeddingExtractor.EmbeddingAccumulator sameSpeaker =
-                new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
-        SpeakerEmbeddingExtractor.EmbeddingAccumulator differentSpeaker =
-                new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
+        LegacySpeakerEmbeddingExtractor extractor = new LegacySpeakerEmbeddingExtractor();
+        LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator instructor =
+                new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
+        LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator sameSpeaker =
+                new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
+        LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator differentSpeaker =
+                new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
 
         for (int frameIndex = 0; frameIndex < 16; frameIndex++) {
             instructor.add(extractor.extractFrameFeatures(

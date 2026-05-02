@@ -1,12 +1,12 @@
 package com.example.audio.data;
 
-import com.example.audio.speaker.SpeakerEmbeddingExtractor;
+import com.example.audio.speaker.LegacySpeakerEmbeddingExtractor;
 
 public final class InstructorVoiceProfileStats {
 
-    private final SpeakerEmbeddingExtractor embeddingExtractor = new SpeakerEmbeddingExtractor();
-    private final SpeakerEmbeddingExtractor.EmbeddingAccumulator embeddingAccumulator =
-            new SpeakerEmbeddingExtractor.EmbeddingAccumulator();
+    private final LegacySpeakerEmbeddingExtractor embeddingExtractor = new LegacySpeakerEmbeddingExtractor();
+    private final LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator embeddingAccumulator =
+            new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
     private int frameCount;
     private double rmsSum;
     private double zcrSum;
@@ -68,7 +68,7 @@ public final class InstructorVoiceProfileStats {
     }
 
     public int getEmbeddingVersion() {
-        return SpeakerEmbeddingExtractor.EMBEDDING_VERSION;
+        return LegacySpeakerEmbeddingExtractor.EMBEDDING_VERSION;
     }
 
     public float[] getEmbedding() {

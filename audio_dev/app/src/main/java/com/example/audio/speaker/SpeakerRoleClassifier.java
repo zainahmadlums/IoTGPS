@@ -203,8 +203,6 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
         return legacyExtractor.buildEmbedding(accumulator);
     }
 
-    }
-
     private SpeakerRole classifyEmbedding(
             float instructorSimilarity,
             float studentSimilarity,
@@ -312,7 +310,7 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
             return;
         }
         if (studentMatch.index >= 0 && studentMatch.similarity >= STUDENT_CLUSTER_UPDATE_THRESHOLD) {
-            studentPrototypes.get(studentMatch.index).update(embedding, legacyExtractor);
+            studentPrototypes.get(studentMatch.index).update(embedding);
             return;
         }
         if (studentPrototypes.size() < MAX_STUDENT_CLUSTERS) {
@@ -481,12 +479,12 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
             this.frameCount = 1;
         }
 
-        void update(float[] embedding, SpeakerEmbeddingExtractor embeddingExtractor) {
+        void update(float[] embedding) {
             int updateWeight = Math.min(frameCount, MIN_STUDENT_CLUSTER_FRAMES);
             for (int index = 0; index < centroid.length; index++) {
                 centroid[index] = ((centroid[index] * updateWeight) + embedding[index]) / (updateWeight + 1);
             }
-            centroid = legacyExtractor.l2Normalize(centroid);
+            centroid = LegacySpeakerEmbeddingExtractor.l2Normalize(centroid);
             frameCount++;
         }
     }

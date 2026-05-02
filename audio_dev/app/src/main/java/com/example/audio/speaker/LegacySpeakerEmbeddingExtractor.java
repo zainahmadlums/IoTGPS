@@ -64,7 +64,7 @@ public final class LegacySpeakerEmbeddingExtractor {
         return l2Normalize(embedding);
     }
 
-    public float cosineSimilarity(float[] first, float[] second) {
+    public static float cosineSimilarity(float[] first, float[] second) {
         if (first == null || second == null || first.length == 0 || first.length != second.length) {
             return 0.0f;
         }
@@ -83,7 +83,7 @@ public final class LegacySpeakerEmbeddingExtractor {
         return dotProduct / ((float) Math.sqrt(firstNorm) * (float) Math.sqrt(secondNorm));
     }
 
-    public float[] l2Normalize(float[] values) {
+    public static float[] l2Normalize(float[] values) {
         if (values == null || values.length == 0) {
             return new float[0];
         }
@@ -220,7 +220,7 @@ public final class LegacySpeakerEmbeddingExtractor {
             for (float[] frameFeatures : features) {
                 accumulator.add(frameFeatures);
             }
-            return SpeakerEmbeddingExtractor.this.buildEmbedding(accumulator);
+            return LegacySpeakerEmbeddingExtractor.this.buildEmbedding(accumulator);
         }
     }
 }

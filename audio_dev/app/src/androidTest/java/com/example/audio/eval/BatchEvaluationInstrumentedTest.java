@@ -16,7 +16,7 @@ import com.example.audio.disturbance.EnergySpikeDetector;
 import com.example.audio.pipeline.AudioPipelineCoordinator;
 import com.example.audio.pipeline.FrameAnalysisResult;
 import com.example.audio.reverb.EnergyDecayReverbEstimator;
-import com.example.audio.speaker.SpeakerEmbeddingExtractor;
+import com.example.audio.speaker.LegacySpeakerEmbeddingExtractor;
 import com.example.audio.speaker.SpeakerRoleClassifier;
 import com.example.audio.speaker.SherpaSpeakerDiarizer;
 import com.example.audio.speaker.SpeakerDiarizer;
@@ -198,8 +198,8 @@ public class BatchEvaluationInstrumentedTest {
                 Log.i(TAG, "Ignoring eval profile cache because audio file size changed.");
                 return null;
             }
-            if (profile.getEmbeddingVersion() != SpeakerEmbeddingExtractor.EMBEDDING_VERSION
-                    || profile.getSpeakerEmbedding().length != new SpeakerEmbeddingExtractor().embeddingSize()) {
+            if (profile.getEmbeddingVersion() != LegacySpeakerEmbeddingExtractor.EMBEDDING_VERSION
+                    || profile.getSpeakerEmbedding().length != new LegacySpeakerEmbeddingExtractor().embeddingSize()) {
                 Log.i(TAG, "Ignoring eval profile cache because embedding format changed.");
                 return null;
             }

@@ -5,6 +5,20 @@ public final class Logger {
     private Logger() {
     }
 
+    public static void i(String tag, String message) {
+        try {
+            android.util.Log.i(tag, message);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    public static void w(String tag, String message) {
+        try {
+            android.util.Log.w(tag, message);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
     public static void d(String tag, String message) {
         try {
             android.util.Log.d(tag, message);
