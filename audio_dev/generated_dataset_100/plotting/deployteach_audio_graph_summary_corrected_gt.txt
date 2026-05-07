@@ -1,0 +1,20 @@
+Corrected ground truth used for comparison:
+- INSTRUCTOR: 0–15s
+- SILENCE: 15–16s
+- STUDENT: 16–30s
+- BOTH: 30–32s
+- INSTRUCTOR: 32–34s
+
+Prediction was aligned to start at 0s and compared over 0–34s.
+
+Prediction totals:
+- INSTRUCTOR: 15.800s
+- STUDENT: 12.200s
+- BOTH: 5.100s
+- SILENCE: 0.900s
+
+Ground-truth totals:
+- INSTRUCTOR: 17.000s
+- STUDENT: 14.000s
+- BOTH: 2.000s
+- SILENCE: 1.000s
