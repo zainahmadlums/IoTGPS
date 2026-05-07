@@ -33,6 +33,7 @@ final class SpeechResilienceTracker {
     private boolean speechActive;
     private int consecutiveSpeechLeanFrames;
     private int consecutiveSilenceLeanFrames;
+    private int consecutiveNoDirectSpeechFrames;
     private long lastDirectSpeechTimestampMillis = Long.MIN_VALUE;
 
     Decision refine(
@@ -52,6 +53,11 @@ final class SpeechResilienceTracker {
                 || reductionResult.getVoicingScore() >= 0.72f);
         if (directSpeech) {
             lastDirectSpeechTimestampMillis = timestampMillis;
+            consecutiveNoDirectSpeechFrames = 0;
+        } else if (!rawSpeech && !conditionedSpeech) {
+            consecutiveNoDirectSpeechFrames++;
+        } else {
+            consecutiveNoDirectSpeechFrames = 0;
         }
 
         float rawWeight = 0.04f + (0.05f * (1.0f - rubbingScore));
@@ -123,7 +129,8 @@ final class SpeechResilienceTracker {
                 && !rejectForVad;
 
         if (speechActive
-                && consecutiveSilenceLeanFrames >= EXIT_FRAME_REQUIREMENT
+                && (consecutiveSilenceLeanFrames >= EXIT_FRAME_REQUIREMENT
+                || consecutiveNoDirectSpeechFrames >= EXIT_FRAME_REQUIREMENT)
                 && !rubbingHold) {
             speechActive = false;
         }
@@ -136,6 +143,7 @@ final class SpeechResilienceTracker {
         speechActive = false;
         consecutiveSpeechLeanFrames = 0;
         consecutiveSilenceLeanFrames = 0;
+        consecutiveNoDirectSpeechFrames = 0;
         lastDirectSpeechTimestampMillis = Long.MIN_VALUE;
     }
 }

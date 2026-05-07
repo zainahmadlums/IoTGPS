@@ -46,7 +46,10 @@ public final class SessionMetadataStore {
             com.example.audio.reverb.ReverbResult.Level reverbLevel,
             List<SpeechEvent> speechEvents,
             AudioConfig audioConfig,
-            List<SessionDiarizationChunk> diarizationChunks
+            List<SessionDiarizationChunk> diarizationChunks,
+            List<SessionRoleInterval> diarizedRoleIntervals,
+            String diarizationEngine,
+            String diarizationStatus
     ) {
         long durationMillis = Math.max(1_000L, endTimeMillis - startTimeMillis);
         List<SessionSpeechInterval> intervals = buildSpeechIntervals(
@@ -55,7 +58,9 @@ public final class SessionMetadataStore {
                 durationMillis,
                 audioConfig != null ? audioConfig.getFrameDurationMs() : AudioConfig.SILERO_FRAME_DURATION_MS
         );
-        List<SessionRoleInterval> roleIntervals = buildRoleIntervals(
+        List<SessionRoleInterval> roleIntervals = diarizedRoleIntervals != null && !diarizedRoleIntervals.isEmpty()
+                ? diarizedRoleIntervals
+                : buildRoleIntervals(
                 speechEvents,
                 startTimeMillis,
                 durationMillis,
@@ -94,8 +99,8 @@ public final class SessionMetadataStore {
                 longestSpeechMillis,
                 intervals,
                 roleIntervals,
-                "COMPLETE",
-                "android-local-speaker-state",
+                diarizationStatus != null ? diarizationStatus : (roleIntervals.isEmpty() ? "PENDING" : "COMPLETE"),
+                diarizationEngine != null ? diarizationEngine : "android-local-speaker-state",
                 diarizationChunks != null ? diarizationChunks : new ArrayList<>(),
                 rawAudioFileName,
                 conditionedAudioFileName,

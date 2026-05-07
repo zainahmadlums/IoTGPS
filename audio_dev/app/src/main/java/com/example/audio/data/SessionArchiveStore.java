@@ -53,6 +53,19 @@ public final class SessionArchiveStore {
         writeEntries(context.getApplicationContext(), entries);
     }
 
+    public synchronized void upsertSession(Context context, SessionArchiveEntry entry) {
+        List<SessionArchiveEntry> entries = getEntries(context);
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).getId().equals(entry.getId())) {
+                entries.set(index, entry);
+                writeEntries(context.getApplicationContext(), entries);
+                return;
+            }
+        }
+        entries.add(0, entry);
+        writeEntries(context.getApplicationContext(), entries);
+    }
+
     public synchronized SessionArchiveEntry renameSession(
             Context context,
             String sessionId,

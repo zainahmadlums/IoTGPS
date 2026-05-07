@@ -29,6 +29,7 @@ import com.example.audio.data.SessionMetadata;
 import com.example.audio.data.SessionMetadataFileManager;
 import com.example.audio.data.SessionMetadataStore;
 import com.example.audio.data.SessionRepository;
+import com.example.audio.data.SessionRoleInterval;
 import com.example.audio.data.WavSessionRecorder;
 import com.example.audio.disturbance.EnergySpikeDetector;
 import com.example.audio.pipeline.FrameAnalysisResult;
@@ -37,7 +38,7 @@ import com.example.audio.pipeline.FrameProcessingDiagnostics;
 import com.example.audio.pipeline.SessionSummary;
 import com.example.audio.reverb.EnergyDecayReverbEstimator;
 import com.example.audio.speaker.SpeakerRoleClassifier;
-import com.example.audio.speaker.SpeakerRoleModel;
+import com.example.audio.speaker.SherpaChunkRoleDiarizer;
 import com.example.audio.util.Logger;
 import com.example.audio.vad.SpeechDetectorFactory;
 
@@ -46,6 +47,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AudioTrackingService extends Service {
 
@@ -66,8 +69,13 @@ public class AudioTrackingService extends Service {
     private String rawAudioFileName;
     private String conditionedAudioFileName;
     private List<SessionDiarizationChunk> finalizedDiarizationChunks = new ArrayList<>();
+    private final List<SessionRoleInterval> finalizedRoleIntervals = new ArrayList<>();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService finalizationExecutor = Executors.newSingleThreadExecutor();
+    private SherpaChunkRoleDiarizer backgroundChunkDiarizer;
+    private long diarizationGeneration;
     private boolean restartInFlight;
+    private boolean stopInProgress;
     private int debugFrameBridgeLogs;
 
     public static Intent createStartIntent(Context context) {
@@ -102,8 +110,7 @@ public class AudioTrackingService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent != null ? intent.getAction() : ACTION_START;
         if (ACTION_STOP.equals(action)) {
-            stopTracking();
-            stopSelf();
+            stopTracking(true);
             return START_NOT_STICKY;
         }
 
@@ -115,7 +122,8 @@ public class AudioTrackingService extends Service {
 
     @Override
     public void onDestroy() {
-        stopTracking();
+        stopTracking(false);
+        finalizationExecutor.shutdown();
         super.onDestroy();
     }
 
@@ -131,9 +139,9 @@ public class AudioTrackingService extends Service {
                     SpeechDetectorFactory.create(this),
                     new EnergySpikeDetector(),
                     new EnergyDecayReverbEstimator(),
-                    new SpeakerRoleClassifier(this, 
-                            InstructorVoiceProfileStore.getInstance().readProfile(this),
-                            SpeakerRoleModel.load(this)
+                    new SpeakerRoleClassifier(
+                            this,
+                            InstructorVoiceProfileStore.getInstance().readProfile(this)
                     )
             );
         }
@@ -162,6 +170,7 @@ public class AudioTrackingService extends Service {
 
         try {
             sessionRepository.startSession();
+            resetFinalDiarizationState();
             initializeSessionRecorders(audioRecorderManager.getAudioConfig());
             audioRecorderManager.start(new AudioRecorderManager.FrameCallback() {
                 @Override
@@ -200,13 +209,36 @@ public class AudioTrackingService extends Service {
         }
     }
 
-    private void stopTracking() {
+    private void stopTracking(boolean stopSelfWhenDone) {
+        if (restartInFlight) {
+            stopTrackingForRestart();
+            return;
+        }
+        if (stopInProgress) {
+            return;
+        }
+        stopInProgress = true;
         if (audioRecorderManager != null) {
             audioRecorderManager.stop();
         }
-        if (sessionRepository != null && sessionRepository.isSessionRunning()) {
-            persistSessionMetadata();
+
+        boolean shouldPersistMetadata = sessionRepository != null && sessionRepository.isSessionRunning();
+        if (!shouldPersistMetadata) {
+            finishStopTracking(stopSelfWhenDone);
+            return;
         }
+
+        long generation = diarizationGeneration;
+        finalizationExecutor.execute(() -> {
+            try {
+                persistSessionMetadata(generation);
+            } finally {
+                mainHandler.post(() -> finishStopTracking(stopSelfWhenDone));
+            }
+        });
+    }
+
+    private void finishStopTracking(boolean stopSelfWhenDone) {
         if (sessionRepository != null) {
             sessionRepository.stopSession();
         }
@@ -216,9 +248,33 @@ public class AudioTrackingService extends Service {
         }
         audioRecorderManager = null;
         stopForeground(STOP_FOREGROUND_REMOVE);
+        stopInProgress = false;
+        if (stopSelfWhenDone) {
+            stopSelf();
+        }
     }
 
-    private void persistSessionMetadata() {
+    private void stopTrackingForRestart() {
+        if (audioRecorderManager != null) {
+            audioRecorderManager.stop();
+        }
+        abortSessionRecorders();
+        if (sessionRepository != null) {
+            sessionRepository.stopSession();
+        }
+        if (audioPipelineCoordinator != null) {
+            audioPipelineCoordinator.close();
+            audioPipelineCoordinator = null;
+        }
+        audioRecorderManager = null;
+        stopForeground(STOP_FOREGROUND_REMOVE);
+        stopInProgress = false;
+    }
+
+    private void persistSessionMetadata(long generation) {
+        if (generation != diarizationGeneration) {
+            return;
+        }
         long startTimeMillis = sessionRepository.getSessionStartTimeMillis();
         long endTimeMillis = Math.max(startTimeMillis, sessionRepository.getSessionEndTimeMillis());
         if (startTimeMillis <= 0L || endTimeMillis <= 0L) {
@@ -227,7 +283,7 @@ public class AudioTrackingService extends Service {
         }
 
         finalizeSessionRecorders();
-        finalizeDiarizationChunks(endTimeMillis);
+        List<SessionDiarizationChunk> tailDiarizationChunks = finalizeDiarizationChunks(endTimeMillis);
         SessionSummary sessionSummary = sessionRepository.getSessionSummary();
         String sessionId = "session-" + endTimeMillis;
         String metadataFileName = SessionMetadataFileManager.createOutputFile(this, startTimeMillis).getName();
@@ -238,6 +294,47 @@ public class AudioTrackingService extends Service {
         );
         InstructorVoiceProfile instructorVoiceProfile =
                 InstructorVoiceProfileStore.getInstance().readProfile(this);
+        long sessionDurationMillis = Math.max(1_000L, endTimeMillis - startTimeMillis);
+        SessionMetadata computingMetadata = SessionMetadataStore.getInstance().buildMetadata(
+                sessionId,
+                title,
+                metadataFileName,
+                rawAudioFileName,
+                conditionedAudioFileName,
+                instructorVoiceProfile != null ? instructorVoiceProfile.getMetadataFileName() : null,
+                instructorVoiceProfile != null ? instructorVoiceProfile.getAudioFileName() : null,
+                startTimeMillis,
+                endTimeMillis,
+                sessionSummary != null ? sessionSummary.getSpeakingRatio() : 0.0f,
+                sessionSummary != null ? sessionSummary.getDisturbanceCount() : 0,
+                sessionSummary != null
+                        ? sessionSummary.getCoarseReverbLevel()
+                        : com.example.audio.reverb.ReverbResult.Level.LOW,
+                sessionRepository.getSpeechEvents(),
+                audioRecorderManager != null ? audioRecorderManager.getAudioConfig() : SpeechDetectorFactory.activeAudioConfig(),
+                finalizedDiarizationChunks,
+                new ArrayList<>(),
+                "sherpa-onnx-20s-chunks",
+                "COMPUTING"
+        );
+        long computingFileSizeBytes = SessionMetadataStore.getInstance().writeMetadata(this, computingMetadata);
+        upsertSessionArchive(
+                sessionId,
+                title,
+                metadataFileName,
+                startTimeMillis,
+                endTimeMillis,
+                computingMetadata.getDurationMillis(),
+                computingFileSizeBytes,
+                computingMetadata.getSpeakingRatio(),
+                computingMetadata.getDisturbanceCount(),
+                computingMetadata.getReverbLevel()
+        );
+        processDiarizationChunks(generation, tailDiarizationChunks);
+        closeBackgroundChunkDiarizer();
+        List<SessionRoleInterval> finalRoleIntervals = buildFinalRoleIntervals(
+                sessionDurationMillis
+        );
 
         SessionMetadata sessionMetadata = SessionMetadataStore.getInstance().buildMetadata(
                 sessionId,
@@ -256,29 +353,29 @@ public class AudioTrackingService extends Service {
                         : com.example.audio.reverb.ReverbResult.Level.LOW,
                 sessionRepository.getSpeechEvents(),
                 audioRecorderManager != null ? audioRecorderManager.getAudioConfig() : SpeechDetectorFactory.activeAudioConfig(),
-                finalizedDiarizationChunks
+                finalizedDiarizationChunks,
+                finalRoleIntervals,
+                "sherpa-onnx-20s-chunks",
+                finalRoleIntervals.isEmpty() ? "FAILED" : "COMPLETE"
         );
         long fileSizeBytes = SessionMetadataStore.getInstance().writeMetadata(this, sessionMetadata);
-
-        SessionArchiveStore.getInstance().archiveSession(
-                this,
-                new SessionArchiveEntry(
-                        sessionId,
-                        title,
-                        metadataFileName,
-                        startTimeMillis,
-                        endTimeMillis,
-                        sessionMetadata.getDurationMillis(),
-                        fileSizeBytes,
-                        sessionMetadata.getSpeakingRatio(),
-                        sessionMetadata.getDisturbanceCount(),
-                        sessionMetadata.getReverbLevel()
-                )
+        upsertSessionArchive(
+                sessionId,
+                title,
+                metadataFileName,
+                startTimeMillis,
+                endTimeMillis,
+                sessionMetadata.getDurationMillis(),
+                fileSizeBytes,
+                sessionMetadata.getSpeakingRatio(),
+                sessionMetadata.getDisturbanceCount(),
+                sessionMetadata.getReverbLevel()
         );
         deleteDiarizationChunkWorkingFiles(finalizedDiarizationChunks);
         rawAudioFileName = null;
         conditionedAudioFileName = null;
         finalizedDiarizationChunks = new ArrayList<>();
+        finalizedRoleIntervals.clear();
     }
 
     private void deleteDiarizationChunkWorkingFiles(List<SessionDiarizationChunk> chunks) {
@@ -312,8 +409,9 @@ public class AudioTrackingService extends Service {
         restartInFlight = true;
         Logger.e(TAG, "Restarting audio tracking due to " + reason + ".");
         try {
-            stopTracking();
+            stopTracking(false);
             ensureTrackingComponents();
+            startForegroundServiceInternal();
             startTrackingIfNeeded();
         } finally {
             restartInFlight = false;
@@ -379,6 +477,7 @@ public class AudioTrackingService extends Service {
                                 ? analysisResult.getVadResult().getSpeakerRole()
                                 : com.example.audio.data.SpeakerRole.SILENCE
                 );
+                queueDiarizationChunks(diarizationChunkWriter.drainFinalizedChunks());
             }
         } catch (IOException ioException) {
             Logger.e(TAG, "Failed to persist session audio frame.", ioException);
@@ -408,13 +507,101 @@ public class AudioTrackingService extends Service {
         }
     }
 
-    private void finalizeDiarizationChunks(long sessionEndTimeMillis) {
+    private List<SessionDiarizationChunk> finalizeDiarizationChunks(long sessionEndTimeMillis) {
         if (diarizationChunkWriter == null) {
             finalizedDiarizationChunks = new ArrayList<>();
-            return;
+            return new ArrayList<>();
         }
         finalizedDiarizationChunks = new ArrayList<>(diarizationChunkWriter.finish(sessionEndTimeMillis));
+        List<SessionDiarizationChunk> newlyFinalizedChunks = new ArrayList<>(
+                diarizationChunkWriter.drainFinalizedChunks()
+        );
         diarizationChunkWriter = null;
+        return newlyFinalizedChunks;
+    }
+
+    private void queueDiarizationChunks(List<SessionDiarizationChunk> chunks) {
+        if (chunks == null || chunks.isEmpty()) {
+            return;
+        }
+        long generation = diarizationGeneration;
+        finalizationExecutor.execute(() -> processDiarizationChunks(generation, chunks));
+    }
+
+    private void processDiarizationChunks(long generation, List<SessionDiarizationChunk> chunks) {
+        if (generation != diarizationGeneration || chunks == null || chunks.isEmpty()) {
+            return;
+        }
+        try {
+            SherpaChunkRoleDiarizer diarizer = getBackgroundChunkDiarizer();
+            for (SessionDiarizationChunk chunk : chunks) {
+                if (generation != diarizationGeneration) {
+                    return;
+                }
+                finalizedRoleIntervals.addAll(diarizer.diarizeChunk(chunk));
+            }
+        } catch (RuntimeException exception) {
+            Logger.e(TAG, "Background Sherpa chunk diarization failed.", exception);
+        }
+    }
+
+    private SherpaChunkRoleDiarizer getBackgroundChunkDiarizer() {
+        if (backgroundChunkDiarizer == null) {
+            backgroundChunkDiarizer = new SherpaChunkRoleDiarizer(
+                    this,
+                    InstructorVoiceProfileStore.getInstance().readProfile(this)
+            );
+        }
+        return backgroundChunkDiarizer;
+    }
+
+    private List<SessionRoleInterval> buildFinalRoleIntervals(long sessionDurationMillis) {
+        if (finalizedRoleIntervals.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return SherpaChunkRoleDiarizer.flattenRoleIntervals(finalizedRoleIntervals, sessionDurationMillis);
+    }
+
+    private void upsertSessionArchive(
+            String sessionId,
+            String title,
+            String metadataFileName,
+            long startTimeMillis,
+            long endTimeMillis,
+            long durationMillis,
+            long fileSizeBytes,
+            float speakingRatio,
+            int disturbanceCount,
+            com.example.audio.reverb.ReverbResult.Level reverbLevel
+    ) {
+        SessionArchiveStore.getInstance().upsertSession(
+                this,
+                new SessionArchiveEntry(
+                        sessionId,
+                        title,
+                        metadataFileName,
+                        startTimeMillis,
+                        endTimeMillis,
+                        durationMillis,
+                        fileSizeBytes,
+                        speakingRatio,
+                        disturbanceCount,
+                        reverbLevel
+                )
+        );
+    }
+
+    private void resetFinalDiarizationState() {
+        diarizationGeneration++;
+        finalizedRoleIntervals.clear();
+        closeBackgroundChunkDiarizer();
+    }
+
+    private void closeBackgroundChunkDiarizer() {
+        if (backgroundChunkDiarizer != null) {
+            backgroundChunkDiarizer.close();
+            backgroundChunkDiarizer = null;
+        }
     }
 
     private void abortSessionRecorders() {
@@ -433,12 +620,13 @@ public class AudioTrackingService extends Service {
         rawAudioFileName = null;
         conditionedAudioFileName = null;
         finalizedDiarizationChunks = new ArrayList<>();
+        finalizedRoleIntervals.clear();
+        closeBackgroundChunkDiarizer();
     }
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        stopTracking();
-        stopSelf();
+        stopTracking(true);
         super.onTaskRemoved(rootIntent);
     }
 

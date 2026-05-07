@@ -188,4 +188,47 @@ public class SpeechResilienceTrackerTest {
         assertTrue(tracker.refine(96L, false, false, silenceFrame).isSpeech());
         assertFalse(tracker.refine(128L, false, false, silenceFrame).isSpeech());
     }
+
+    @Test
+    public void exitsWhenDirectVadStopsEvenIfFusedScoreIsAmbiguous() {
+        SpeechResilienceTracker tracker = new SpeechResilienceTracker();
+        PocketNoiseReducer.Result speechFrame = new PocketNoiseReducer.Result(
+                new short[0],
+                new short[0],
+                0.05f,
+                0.05f,
+                0.03f,
+                0.07f,
+                0.35f,
+                0.65f,
+                0.60f,
+                0.28f,
+                0.62f,
+                0.14f,
+                0.08f,
+                false
+        );
+        PocketNoiseReducer.Result ambiguousNonSpeechFrame = new PocketNoiseReducer.Result(
+                new short[0],
+                new short[0],
+                0.02f,
+                0.02f,
+                0.02f,
+                0.04f,
+                0.46f,
+                0.54f,
+                0.34f,
+                0.24f,
+                0.34f,
+                0.16f,
+                0.12f,
+                false
+        );
+
+        tracker.refine(0L, true, true, speechFrame);
+        tracker.refine(32L, true, true, speechFrame);
+        assertTrue(tracker.refine(64L, false, false, ambiguousNonSpeechFrame).isSpeech());
+        assertTrue(tracker.refine(96L, false, false, ambiguousNonSpeechFrame).isSpeech());
+        assertFalse(tracker.refine(128L, false, false, ambiguousNonSpeechFrame).isSpeech());
+    }
 }

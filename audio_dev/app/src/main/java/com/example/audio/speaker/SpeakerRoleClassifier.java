@@ -5,18 +5,22 @@ import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig;
 import com.k2fsa.sherpa.onnx.OnlineStream;
 
 import com.example.audio.data.InstructorVoiceProfile;
+import com.example.audio.data.SessionAudioFileManager;
 import com.example.audio.data.SpeakerRole;
 import com.example.audio.util.Logger;
 import com.example.audio.vad.VadResult;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class SpeakerRoleClassifier implements SpeakerDiarizer {
 
     private static final String TAG = "SpeakerRoleClassifier";
-    private static final int SPEAKER_WINDOW_FRAMES = 150;
-    private static final int SPEAKER_HOP_FRAMES = 50;
+    private static final int SPEAKER_WINDOW_FRAMES = 64;
+    private static final int SPEAKER_HOP_FRAMES = 32;
     private static final int EMBEDDING_SAMPLE_FRAMES = 16;
     private static final int MAX_SPEECH_GAP_FRAMES = 10;
     private static final int MAX_STUDENT_CLUSTERS = 6;
@@ -29,6 +33,12 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
     private static final float SPEAKER_MARGIN = 0.035f;
     private static final float BOTH_MIN_INSTRUCTOR_SIMILARITY = 0.78f;
     private static final float BOTH_MIN_STUDENT_SIMILARITY = 0.78f;
+    private static final float SHERPA_INSTRUCTOR_ENTER_THRESHOLD = 0.42f;
+    private static final float SHERPA_INSTRUCTOR_STAY_THRESHOLD = 0.38f;
+    private static final float SHERPA_STUDENT_CLUSTER_THRESHOLD = 0.36f;
+    private static final float SHERPA_STUDENT_CLUSTER_UPDATE_THRESHOLD = 0.32f;
+    private static final float SHERPA_BOTH_MIN_INSTRUCTOR_SIMILARITY = 0.36f;
+    private static final float SHERPA_BOTH_MIN_STUDENT_SIMILARITY = 0.32f;
     private static final float MIN_ROLE_RMS = 0.012f;
     private static final float MIN_ROLE_CONFIDENCE = 0.42f;
     private static final float OVERLAP_RMS_JUMP = 1.30f;
@@ -38,7 +48,7 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
 
     private final LegacySpeakerEmbeddingExtractor legacyExtractor = new LegacySpeakerEmbeddingExtractor();
     private SpeakerEmbeddingExtractor sherpaExtractor;
-    private OnlineStream sherpaStream;
+    private float[] sherpaInstructorEmbedding = new float[0];
     private final List<short[]> speechWindowFrames = new ArrayList<>();
     private final List<SpeakerPrototype> studentPrototypes = new ArrayList<>();
     private final InstructorVoiceProfile instructorVoiceProfile;
@@ -121,7 +131,8 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
                 strongSpeech,
                 overlapEnergyJump,
                 overlapBandShift,
-                similarityUnstable
+                similarityUnstable,
+                isSherpaEmbedding(currentEmbedding)
         );
         if (rawRole == SpeakerRole.STUDENT) {
             updateStudentPrototypes(currentEmbedding, studentMatch);
@@ -179,15 +190,11 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
     }
 
     private float[] buildWindowEmbedding() {
-        if (sherpaExtractor != null && sherpaStream != null) {
-            short[] window = buildSpeakerWindow();
-            float[] floatSamples = new float[window.length];
-            for (int i = 0; i < window.length; i++) floatSamples[i] = window[i] / 32768.0f;
-            sherpaStream.acceptWaveform(floatSamples, 16000);
-            if (sherpaExtractor.isReady(sherpaStream)) {
-                return sherpaExtractor.compute(sherpaStream);
-            }
+        float[] sherpaEmbedding = buildSherpaEmbedding(buildSpeakerWindow());
+        if (sherpaEmbedding.length > 0 && sherpaInstructorEmbedding.length == sherpaEmbedding.length) {
+            return sherpaEmbedding;
         }
+
         LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator accumulator =
                 new LegacySpeakerEmbeddingExtractor.EmbeddingAccumulator();
         int sampleCount = Math.min(EMBEDDING_SAMPLE_FRAMES, speechWindowFrames.size());
@@ -210,21 +217,37 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
             boolean strongSpeech,
             boolean overlapEnergyJump,
             boolean overlapBandShift,
-            boolean similarityUnstable
+            boolean similarityUnstable,
+            boolean sherpaEmbedding
     ) {
-        if (speakerRoleModel != null) {
+        if (!sherpaEmbedding && speakerRoleModel != null) {
             return speakerRoleModel.predict(modelFeatures);
         }
 
-        boolean knownStudent = studentSimilarity >= STUDENT_CLUSTER_THRESHOLD;
-        boolean instructorDominant = instructorSimilarity >= INSTRUCTOR_ENTER_THRESHOLD
+        float instructorEnterThreshold = sherpaEmbedding
+                ? SHERPA_INSTRUCTOR_ENTER_THRESHOLD
+                : INSTRUCTOR_ENTER_THRESHOLD;
+        float instructorStayThreshold = sherpaEmbedding
+                ? SHERPA_INSTRUCTOR_STAY_THRESHOLD
+                : INSTRUCTOR_STAY_THRESHOLD;
+        float studentClusterThreshold = sherpaEmbedding
+                ? SHERPA_STUDENT_CLUSTER_THRESHOLD
+                : STUDENT_CLUSTER_THRESHOLD;
+        float bothInstructorThreshold = sherpaEmbedding
+                ? SHERPA_BOTH_MIN_INSTRUCTOR_SIMILARITY
+                : BOTH_MIN_INSTRUCTOR_SIMILARITY;
+        float bothStudentThreshold = sherpaEmbedding
+                ? SHERPA_BOTH_MIN_STUDENT_SIMILARITY
+                : BOTH_MIN_STUDENT_SIMILARITY;
+        boolean knownStudent = studentSimilarity >= studentClusterThreshold;
+        boolean instructorDominant = instructorSimilarity >= instructorEnterThreshold
                 && instructorSimilarity >= studentSimilarity + SPEAKER_MARGIN;
         boolean instructorSticky = lastStableSpeechRole == SpeakerRole.INSTRUCTOR
-                && instructorSimilarity >= INSTRUCTOR_STAY_THRESHOLD
+                && instructorSimilarity >= instructorStayThreshold
                 && instructorSimilarity >= studentSimilarity;
         boolean overlapCandidate = strongSpeech
-                && instructorSimilarity >= BOTH_MIN_INSTRUCTOR_SIMILARITY
-                && studentSimilarity >= BOTH_MIN_STUDENT_SIMILARITY
+                && instructorSimilarity >= bothInstructorThreshold
+                && studentSimilarity >= bothStudentThreshold
                 && Math.abs(instructorSimilarity - studentSimilarity) <= 0.10f
                 && (overlapEnergyJump || overlapBandShift || similarityUnstable);
 
@@ -309,7 +332,10 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
         if (embedding == null || embedding.length == 0) {
             return;
         }
-        if (studentMatch.index >= 0 && studentMatch.similarity >= STUDENT_CLUSTER_UPDATE_THRESHOLD) {
+        float updateThreshold = isSherpaEmbedding(embedding)
+                ? SHERPA_STUDENT_CLUSTER_UPDATE_THRESHOLD
+                : STUDENT_CLUSTER_UPDATE_THRESHOLD;
+        if (studentMatch.index >= 0 && studentMatch.similarity >= updateThreshold) {
             studentPrototypes.get(studentMatch.index).update(embedding);
             return;
         }
@@ -373,19 +399,23 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
 
     @Override
     public void close() {
-        if (sherpaStream != null) {
-            sherpaStream.release();
-            sherpaStream = null;
-        }
         if (sherpaExtractor != null) {
             sherpaExtractor.release();
             sherpaExtractor = null;
         }
     }
 
+    private boolean isSherpaEmbedding(float[] embedding) {
+        return embedding != null
+                && sherpaInstructorEmbedding != null
+                && embedding.length > 0
+                && embedding.length == sherpaInstructorEmbedding.length;
+    }
 
     private void initSherpa(android.content.Context context) {
-        if (context == null) return;
+        if (context == null || instructorVoiceProfile == null) {
+            return;
+        }
         try {
             String modelPath = copyAssetToFile(context, "sherpa-onnx/embedding.onnx");
             SpeakerEmbeddingExtractorConfig config = SpeakerEmbeddingExtractorConfig.builder()
@@ -394,30 +424,106 @@ public final class SpeakerRoleClassifier implements SpeakerDiarizer {
                     .setDebug(false)
                     .build();
             sherpaExtractor = new SpeakerEmbeddingExtractor(config);
-            sherpaStream = sherpaExtractor.createStream();
-            Logger.i(TAG, "Sherpa-ONNX Live Tracking initialized.");
-        } catch (Exception e) {
-            Logger.e(TAG, "Failed to init Sherpa-ONNX", e);
+            File profileAudioFile = SessionAudioFileManager.resolveAudioFile(
+                    context,
+                    instructorVoiceProfile.getAudioFileName()
+            );
+            sherpaInstructorEmbedding = buildSherpaEmbedding(readPcm16Wav(profileAudioFile));
+            if (sherpaInstructorEmbedding.length > 0) {
+                Logger.i(TAG, "Sherpa-ONNX speaker role mapping initialized.");
+            } else {
+                Logger.e(TAG, "Sherpa-ONNX instructor embedding unavailable; using legacy speaker mapping.");
+            }
+        } catch (Exception exception) {
+            Logger.e(TAG, "Failed to init Sherpa-ONNX speaker role mapping.", exception);
+            sherpaInstructorEmbedding = new float[0];
+            if (sherpaExtractor != null) {
+                sherpaExtractor.release();
+                sherpaExtractor = null;
+            }
+        }
+    }
+
+    private float[] buildSherpaEmbedding(short[] samples) {
+        if (sherpaExtractor == null || samples == null || samples.length == 0) {
+            return new float[0];
+        }
+        OnlineStream stream = null;
+        try {
+            stream = sherpaExtractor.createStream();
+            stream.acceptWaveform(shortToFloat(samples), 16000);
+            stream.inputFinished();
+            if (!sherpaExtractor.isReady(stream)) {
+                return new float[0];
+            }
+            float[] embedding = sherpaExtractor.compute(stream);
+            return LegacySpeakerEmbeddingExtractor.l2Normalize(embedding);
+        } catch (RuntimeException exception) {
+            Logger.e(TAG, "Failed to compute Sherpa speaker embedding.", exception);
+            return new float[0];
+        } finally {
+            if (stream != null) {
+                stream.release();
+            }
+        }
+    }
+
+    private float[] shortToFloat(short[] samples) {
+        float[] floatSamples = new float[samples.length];
+        for (int index = 0; index < samples.length; index++) {
+            floatSamples[index] = samples[index] / 32768.0f;
+        }
+        return floatSamples;
+    }
+
+    private short[] readPcm16Wav(File file) throws IOException {
+        if (file == null || !file.exists() || file.length() <= 44L) {
+            return new short[0];
+        }
+        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
+            if (randomAccessFile.length() <= 44L) {
+                return new short[0];
+            }
+            randomAccessFile.seek(40L);
+            int dataBytes = Integer.reverseBytes(randomAccessFile.readInt());
+            int safeDataBytes = (int) Math.min(Math.max(0L, randomAccessFile.length() - 44L), dataBytes);
+            safeDataBytes -= safeDataBytes % 2;
+            short[] samples = new short[safeDataBytes / 2];
+            randomAccessFile.seek(44L);
+            for (int index = 0; index < samples.length; index++) {
+                int low = randomAccessFile.read();
+                int high = randomAccessFile.read();
+                if (low < 0 || high < 0) {
+                    break;
+                }
+                samples[index] = (short) ((high << 8) | low);
+            }
+            return samples;
         }
     }
 
     private String copyAssetToFile(android.content.Context context, String assetPath) {
-        java.io.File file = new java.io.File(context.getFilesDir(), assetPath);
-        if (file.exists()) return file.getAbsolutePath();
-        java.io.File parent = file.getParentFile();
-        if (parent != null && !parent.exists()) parent.mkdirs();
+        File file = new File(context.getFilesDir(), assetPath);
+        if (file.exists()) {
+            return file.getAbsolutePath();
+        }
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
         try (java.io.InputStream in = context.getAssets().open(assetPath);
              java.io.OutputStream out = new java.io.FileOutputStream(file)) {
             byte[] buffer = new byte[8192];
             int read;
-            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
             return file.getAbsolutePath();
-        } catch (Exception e) {
+        } catch (Exception exception) {
+            Logger.e(TAG, "Failed to copy Sherpa asset: " + assetPath, exception);
             return "";
         }
     }
-
-
     private FrameVoiceFeatures extractFeatures(short[] frame) {
         double energy = 0.0d;
         double lowEnergy = 0.0d;

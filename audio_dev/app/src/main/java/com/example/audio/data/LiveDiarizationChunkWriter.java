@@ -19,7 +19,7 @@ import org.json.JSONObject;
 public final class LiveDiarizationChunkWriter {
 
     private static final String TAG = "LiveDiarizationChunks";
-    private static final long DEFAULT_CHUNK_DURATION_MILLIS = 40_000L;
+    private static final long DEFAULT_CHUNK_DURATION_MILLIS = 20_000L;
     private static final long DEFAULT_OVERLAP_MILLIS = 5_000L;
 
     private final Context context;
@@ -35,6 +35,7 @@ public final class LiveDiarizationChunkWriter {
     private File currentMetadataFile;
     private long currentChunkStartOffsetMillis = -1L;
     private int chunkIndex;
+    private int drainedChunkCount;
     private final List<LabelFrame> currentFrames = new ArrayList<>();
 
     public LiveDiarizationChunkWriter(Context context, AudioConfig audioConfig, long sessionStartTimeMillis) {
@@ -78,6 +79,17 @@ public final class LiveDiarizationChunkWriter {
         return Collections.unmodifiableList(new ArrayList<>(chunks));
     }
 
+    public synchronized List<SessionDiarizationChunk> drainFinalizedChunks() {
+        if (drainedChunkCount >= chunks.size()) {
+            return Collections.emptyList();
+        }
+        List<SessionDiarizationChunk> drained = new ArrayList<>(
+                chunks.subList(drainedChunkCount, chunks.size())
+        );
+        drainedChunkCount = chunks.size();
+        return Collections.unmodifiableList(drained);
+    }
+
     public synchronized void abort() {
         if (recorder != null) {
             recorder.abort();
@@ -86,6 +98,7 @@ public final class LiveDiarizationChunkWriter {
         currentFile = null;
         currentMetadataFile = null;
         currentChunkStartOffsetMillis = -1L;
+        drainedChunkCount = 0;
         overlapFrames.clear();
         currentFrames.clear();
     }

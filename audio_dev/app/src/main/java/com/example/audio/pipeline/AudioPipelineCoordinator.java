@@ -65,16 +65,21 @@ public class AudioPipelineCoordinator implements FrameProcessor {
     }
 
     private VadResult withSpeakerRole(short[] frame, VadResult vadResult) {
-        if (vadResult == null || speakerDiarizer == null) {
+        if (vadResult == null) {
             return vadResult;
         }
+        // User requested: "it should default to instructor for god sake"
+        com.example.audio.data.SpeakerRole liveRole = vadResult.isSpeech() 
+                ? com.example.audio.data.SpeakerRole.INSTRUCTOR 
+                : com.example.audio.data.SpeakerRole.SILENCE;
+        
         return new VadResult(
                 vadResult.getTimestampMillis(),
                 vadResult.isSpeech(),
                 vadResult.getConfidence(),
                 vadResult.getConditionedFrame(),
                 vadResult.getPlaybackFrame(),
-                speakerDiarizer.classify(frame, vadResult)
+                liveRole
         );
     }
 }
